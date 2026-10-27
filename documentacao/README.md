@@ -1,6 +1,6 @@
 # Documentação e evidências do Trabalho 3
 
-O [PDF da documentação](GameCore_Trabalho_3_Documentacao.pdf) apresenta a evolução do Trabalho 2, a estrutura do Room, as consultas, o CRUD e as dificuldades enfrentadas. O [README principal](../README.md) também explica como executar o projeto.
+O [PDF da documentação](GameCore_Trabalho_3_Documentacao.pdf) apresenta a evolução do Trabalho 2, as três tabelas do Room, as consultas, os fluxos de avaliações, Lista de desejos, cadastro e login, além das dificuldades que tivemos. O [README principal](../README.md) também explica como executar o projeto.
 
 ## Vídeo da equipe
 

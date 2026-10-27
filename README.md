@@ -1,6 +1,6 @@
 # GameCore Trabalho 3
 
-Aplicativo Android de loja de jogos feito em Kotlin e Jetpack Compose. Neste trabalho, usamos Room para guardar avaliações e itens da lista de desejos no próprio aparelho. O projeto continua o GameCore do Trabalho 2.
+Aplicativo Android de loja de jogos feito em Kotlin e Jetpack Compose. Nesta versão, usamos Room para guardar avaliações, itens da Lista de desejos e contas criadas no cadastro local. O projeto continua o GameCore do Trabalho 2.
 
 Integrantes: Gabriel Henrique Alves Raatz e Matheus Pupia.
 
@@ -15,7 +15,7 @@ O projeto usa `room-runtime`, `room-ktx` e `room-compiler` com KSP, configurados
 
 ## Do Trabalho 2 para o Trabalho 3
 
-No Trabalho 2, os jogos da lista de desejos e as avaliações apareciam na interface enquanto o app estava aberto, mas eram mantidos em listas na memória. Fechar o aplicativo fazia esses itens desaparecerem. Mantivemos as telas e os botões que já existiam e trocamos a origem dessas duas listas: agora as ações passam pelos DAOs do Room e os itens são lidos do SQLite local.
+No Trabalho 2, os jogos da Lista de desejos e as avaliações apareciam na interface enquanto o app estava aberto, mas eram mantidos em listas na memória. Fechar o aplicativo fazia esses itens desaparecerem. Mantivemos as telas e os botões que já existiam e trocamos a origem dessas duas listas: agora as ações passam pelos DAOs do Room e os itens são lidos do SQLite local. Também acrescentamos cadastro e login, que consultam uma tabela de usuários no mesmo banco.
 
 O carrinho e a Biblioteca continuam temporários. A compra é uma simulação: ela coloca o jogo na Biblioteca durante a sessão para liberar o formulário de avaliação. O catálogo de jogos também continua definido em `storeGames`; não criamos uma tabela de jogos nesta etapa.
 
@@ -25,16 +25,19 @@ O carrinho e a Biblioteca continuam temporários. A compra é uma simulação: e
 | --- | --- | --- |
 | [`ReviewData`](app/src/main/java/com/example/gamecore/GameData.kt) → `avaliacoes` | `id`, `gameId`, `author`, `rating`, `text`, `helpful` | O `id` identifica a avaliação que será editada ou aberta no detalhe; `gameId` liga o comentário a um jogo do catálogo; os outros campos mostram autor, nota, texto e votos úteis. |
 | [`WishlistEntry`](app/src/main/java/com/example/gamecore/data/WishlistEntry.kt) → `lista_desejos` | `id`, `gameId`, `adicionadoEm` | Guardamos o identificador do jogo e a data da inclusão. Nome, capa e preço são obtidos do catálogo ao montar a tela, evitando duplicar esses dados no banco. |
+| [`Usuario`](app/src/main/java/com/example/gamecore/data/Usuario.kt) → `usuarios` | `id`, `nome`, `usuario`, `email`, `senha` | Esses dados são preenchidos no cadastro. O e-mail e a senha são consultados no login; o nome e o usuário identificam a conta nas telas. |
 
-As duas entidades têm `id: Int = 0` com `@PrimaryKey(autoGenerate = true)`. `WishlistEntry` também tem um índice único em `gameId` para impedir que o mesmo jogo seja salvo duas vezes.
+As três entidades têm `id: Int = 0` com `@PrimaryKey(autoGenerate = true)`. `WishlistEntry` também tem um índice único em `gameId` para impedir que o mesmo jogo seja salvo duas vezes.
 
 [`AppDatabase`](app/src/main/java/com/example/gamecore/data/AppDatabase.kt) reúne as entidades e expõe seus DAOs. A instância do banco é criada com `Room.databaseBuilder` e reutilizada por meio de `companion object`, `@Volatile` e `synchronized`, como no exemplo de aula. A versão atual do banco é 2 porque a tabela adicional de usuários foi incluída depois; a migração de 1 para 2 cria essa tabela sem apagar avaliações e desejos existentes.
 
-As telas de cadastro e login usam uma terceira entidade, [`Usuario`](app/src/main/java/com/example/gamecore/data/Usuario.kt), e o [`UsuarioDAO`](app/src/main/java/com/example/gamecore/data/UsuarioDAO.kt). Essa funcionalidade local foi acrescentada ao projeto, embora o enunciado do Trabalho 3 não peça login. Ela não usa servidor, API ou sincronização. A demonstração de persistência solicitada pelo professor deve se concentrar em avaliações e lista de desejos.
+O cadastro e o login foram uma funcionalidade adicional do nosso projeto; o enunciado do Trabalho 3 não exige autenticação. Tudo funciona localmente, sem servidor, API ou sincronização. A senha é guardada diretamente no banco nesta versão de estudo; esse formato não seria adequado para um aplicativo publicado.
 
 ## Consultas dos DAOs
 
 [`ReviewDao`](app/src/main/java/com/example/gamecore/data/ReviewDao.kt) e [`WishlistDao`](app/src/main/java/com/example/gamecore/data/WishlistDao.kt) têm `@Insert`, `@Query` para buscar todos, `@Update` e `@Delete`; todos os métodos são `suspend`. Acrescentamos `buscarPorId(id)` para localizar uma linha específica. `ReviewDao` também tem `buscarPorJogoId(gameId)`, que permite selecionar avaliações de um jogo. Em `WishlistDao`, `buscarPorJogoId(gameId)` ajuda a localizar o item correto antes de removê-lo.
+
+O [`UsuarioDAO`](app/src/main/java/com/example/gamecore/data/UsuarioDAO.kt) também tem os quatro métodos básicos e consultas por `id`, `email` e nome de usuário. Antes de cadastrar, buscamos o e-mail e o nome de usuário para evitar repetição. No login, `buscarLogin(email, senha)` procura a conta correspondente. Esses métodos também são `suspend`.
 
 As operações do banco são iniciadas em `viewModelScope.launch(Dispatchers.IO)` no [`GameCoreViewModel`](app/src/main/java/com/example/gamecore/GameCoreViewModel.kt). Quando a leitura ou escrita termina, a lista observada pelo Compose é atualizada na thread principal. Os erros são tratados com `try/catch` e `Log.e`.
 
@@ -46,13 +49,15 @@ Em Avaliações, o formulário publica uma nova avaliação com `inserir`. A lis
 
 O detalhe da avaliação recebe apenas o `reviewId` na rota. Ao abrir, [`MainActivity`](app/src/main/java/com/example/gamecore/MainActivity.kt) chama `loadReviewForDetail(id)`, e o ViewModel busca a avaliação por `ReviewDao.buscarPorId(id)`. Assim, o detalhe lê o item diretamente do banco, como pede a seção 3.3 do enunciado.
 
+No Cadastro, o formulário salva um `Usuario` em `usuarios` depois de verificar se o e-mail e o nome de usuário já existem. No Login, a consulta ao `UsuarioDAO` valida o e-mail e a senha informados antes de abrir a Loja. Quando fechamos e abrimos o app, podemos entrar com a conta cadastrada porque ela permanece no banco local. A interface não oferece edição ou exclusão de usuário, embora esses métodos existam no DAO.
+
 ## Dificuldades e soluções
 
-A mudança mais importante foi deixar a lista da interface depender do resultado do banco. Durante a integração, a Lista de desejos chegou a mostrar um jogo antes de confirmar que o Room o havia salvo. Corrigimos esse fluxo: agora a tela é atualizada depois de `inserir` e `buscarTodos`, e um conjunto de inclusões pendentes impede toques repetidos enquanto a gravação está em andamento. Na remoção, a lista também é relida depois do `deletar`.
+Nós tivemos dificuldade para fazer a interface depender do resultado do banco, em vez de mudar a lista em memória imediatamente. Durante a integração, vimos um jogo aparecer na Lista de desejos antes de o Room confirmar a gravação. Corrigimos o fluxo para atualizar a tela depois de `inserir` e `buscarTodos`. Também passamos a controlar inclusões pendentes para evitar toques repetidos e a reler a lista depois de `deletar`.
 
-Outro ajuste foi na compilação do Room com a versão de Kotlin e KSP usada pelo projeto. A versão inicial do Room produziu erro no código gerado; a atualização da dependência para 2.8.5 permitiu compilar novamente. Mantivemos as chamadas aos DAOs em `Dispatchers.IO` para não executar acesso ao SQLite na thread da interface.
+Também enfrentamos um erro na compilação do Room com a versão de Kotlin e KSP usada pelo projeto. Atualizamos a dependência para 2.8.5 e conseguimos compilar novamente. Mantivemos as chamadas aos DAOs em `Dispatchers.IO` para não executar acesso ao SQLite na thread da interface.
 
-Gabriel Henrique Alves Raatz e Matheus Pupia tiveram dificuldade para decidir como organizar as tabelas do banco. A escolha foi guardar as avaliações e os identificadores dos jogos da Lista de desejos em tabelas separadas. O catálogo continuou no código, pois não precisava ser persistido nesta etapa. Assim, a Lista de desejos consulta o Room e usa o `gameId` para mostrar os dados do jogo.
+Nós, Gabriel Henrique Alves Raatz e Matheus Pupia, tivemos dificuldade para decidir como organizar as tabelas do banco. Escolhemos separar avaliações, Lista de desejos e usuários em três tabelas. Mantivemos o catálogo no código, pois ele não precisava ser persistido, e fizemos a Lista de desejos usar o `gameId` para mostrar os dados do jogo. Quando acrescentamos o cadastro, criamos a migração para incluir `usuarios` sem apagar os registros que já estavam salvos.
 
 ## Evidências da etapa 3
 
