@@ -1,39 +1,25 @@
-# Roteiro de evidência — Trabalho 3 (Room)
-
-Use este roteiro para gravar o vídeo curto ou gerar os prints pedidos na apresentação. A ideia é deixar visível que os dados foram recuperados do SQLite depois que o aplicativo deixou de existir em memória.
+# Roteiro de gravação do Trabalho 3
 
 ## Preparação
 
-1. Instale uma build nova em um emulador ou aparelho.
-2. Abra o app, faça login e deixe a gravação de tela ligada.
-3. Para uma demonstração limpa, desinstale a versão anterior do app antes de começar; não use “Limpar dados” depois de inserir o item que será usado como prova.
+Instale e abra a versão atual do GameCore em um aparelho ou emulador. Crie uma conta pela tela **Cadastrar**; o app não possui usuário de demonstração. Ative a gravação de tela antes de iniciar o teste.
 
-## Prova de persistência da lista de desejos
+## Persistência da Lista de desejos
 
-1. Na Loja, abra qualquer jogo e toque em **Adicionar à lista de desejos**.
-2. Volte para **Configurações → Lista de desejos** e mostre o item na lista.
-3. Feche o aplicativo completamente (remova-o da tela de recentes).
-4. Abra o aplicativo novamente, faça login e retorne à Lista de desejos.
-5. Mostre o mesmo item ainda visível.
+1. Entre na Loja, abra um jogo e toque em **Adicionar à lista de desejos**.
+2. Abra **Perfil → Configurações → Lista de desejos** e mostre o jogo salvo.
+3. Feche o aplicativo por completo, removendo-o da lista de apps recentes.
+4. Abra o app novamente, faça login e volte à Lista de desejos.
+5. Mostre o mesmo jogo ainda na lista. Grave a tela antes e depois da reabertura.
 
-Capturas recomendadas:
-
-- `room-01-item-adicionado.png`: item recém-adicionado na Lista de desejos.
-- `room-02-app-reaberto.png`: o mesmo item após fechar e reabrir o app.
+Não desinstale o app nem use **Limpar dados** entre os passos 2 e 4: essas ações apagam o SQLite local e invalidam o teste.
 
 ## CRUD de avaliações
 
-1. Adicione um jogo ao carrinho e conclua a compra para liberá-lo na Biblioteca.
-2. Abra o jogo e entre em **Ver avaliações**.
-3. Preencha a nota e o comentário e toque em **Publicar avaliação** (`@Insert`).
-4. Toque em **Editar sua avaliação**, altere texto ou nota e salve (`@Update`).
-5. Toque em **Remover** na sua avaliação (`@Delete`).
-6. Publique outra avaliação, feche e reabra o app para demonstrar a persistência desse registro.
+1. Adicione um jogo ao Carrinho e conclua a compra simulada para incluí-lo na Biblioteca desta sessão.
+2. Abra o jogo na Biblioteca, entre em **Ver avaliações** e publique uma avaliação com nota e texto.
+3. Abra essa avaliação, altere a nota ou o texto e toque em **Salvar alterações**.
+4. Volte à lista e remova a avaliação.
+5. Se quiser demonstrar persistência também com avaliação, publique outra, feche e reabra o app, faça login e abra as avaliações do mesmo jogo pelo detalhe na Loja. A Biblioteca é temporária e pode aparecer vazia após a reabertura; a avaliação continua salva no Room.
 
-## Pontos para explicar durante a apresentação
-
-- `ReviewData` e `WishlistEntry` são as duas entidades Room, ambas com chave primária inteira autogerada.
-- `ReviewDao` e `WishlistDao` têm os quatro métodos CRUD obrigatórios, todos `suspend`.
-- `AppDatabase` é um singleton e concentra os DAOs.
-- O detalhe da avaliação recebe somente o ID da rota e busca o registro via `buscarPorId`.
-- As operações em banco usam `Dispatchers.IO`; a interface é atualizada depois da conclusão.
+Ao apresentar o código, mostre `ReviewData`, `WishlistEntry`, os dois DAOs, `AppDatabase` e a rota de detalhe que passa `reviewId`. O detalhe deve buscar a avaliação por `buscarPorId(id)`, não receber o objeto completo pela navegação.

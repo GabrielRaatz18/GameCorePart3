@@ -1,78 +1,61 @@
-# GameCore — Trabalho 3: Persistência com Room
+# GameCore Trabalho 3
 
-Aplicativo Android de loja e comunidade de jogos, desenvolvido em Kotlin com Jetpack Compose. Esta terceira etapa evolui o Trabalho 2: as avaliações e a lista de desejos deixam de existir somente em memória e passam a ser salvas localmente com Room/SQLite.
+Aplicativo Android de loja de jogos feito em Kotlin e Jetpack Compose. Neste trabalho, usamos Room para guardar avaliações e itens da lista de desejos no próprio aparelho. O projeto continua o GameCore do Trabalho 2.
+
+Integrantes: Gabriel Henrique Alves Raatz e Matheus Pupia.
 
 ## Como executar
 
-1. Abra esta pasta no Android Studio.
-2. Aguarde a sincronização do Gradle.
-3. Execute o app em um emulador ou aparelho com Android 7.0 (API 24) ou superior.
-4. Entre pela tela inicial, abra um jogo, adicione-o à lista de desejos ou compre-o para poder publicar uma avaliação.
+1. Abra o projeto no Android Studio e aguarde a sincronização do Gradle.
+2. Execute o módulo `app` em um aparelho ou emulador com Android 7.0 (API 24) ou superior.
+3. Na primeira execução, toque em **Cadastrar**, crie uma conta e entre no aplicativo. Não existe conta de demonstração pronta.
+4. Abra um jogo na Loja. Para testar a lista de desejos, use o botão do detalhe do jogo. Para testar avaliações, conclua uma compra simulada, abra o jogo na Biblioteca e entre em **Ver avaliações**.
 
-## O que mudou do Trabalho 2
+O projeto usa `room-runtime`, `room-ktx` e `room-compiler` com KSP, configurados em [`app/build.gradle.kts`](app/build.gradle.kts). Para conferir a compilação e os testes locais pelo terminal, use `./gradlew :app:testDebugUnitTest` no macOS/Linux ou `.\gradlew.bat :app:testDebugUnitTest` no Windows.
 
-No Trabalho 2, `GameCoreViewModel` mantinha as listas em memória. Isso permitia inserir, editar e remover itens durante a sessão, mas tudo se perdia quando a Activity era fechada. Nesta versão, o ViewModel continua oferecendo estado reativo para o Compose, porém lê e grava as listas persistentes no banco Room.
+## Do Trabalho 2 para o Trabalho 3
 
-| Recurso | Trabalho 2 | Trabalho 3 |
-| --- | --- | --- |
-| Lista de desejos | Lista em memória | Tabela `lista_desejos` no Room |
-| Avaliações | Lista em memória | Tabela `avaliacoes` no Room |
-| Adicionar / editar / remover avaliação | Apenas durante a sessão | CRUD persistido no SQLite local |
-| Detalhe de avaliação | Procurava na lista em memória | Busca a avaliação pelo ID recebido na rota |
+No Trabalho 2, os jogos da lista de desejos e as avaliações apareciam na interface enquanto o app estava aberto, mas eram mantidos em listas na memória. Fechar o aplicativo fazia esses itens desaparecerem. Mantivemos as telas e os botões que já existiam e trocamos a origem dessas duas listas: agora as ações passam pelos DAOs do Room e os itens são lidos do SQLite local.
 
-O carrinho e a biblioteca continuam sendo estados temporários porque esta etapa concentra a persistência nas listas que já possuíam interações completas na interface: Lista de desejos e Avaliações.
+O carrinho e a Biblioteca continuam temporários. A compra é uma simulação: ela coloca o jogo na Biblioteca durante a sessão para liberar o formulário de avaliação. O catálogo de jogos também continua definido em `storeGames`; não criamos uma tabela de jogos nesta etapa.
 
 ## Estrutura do banco
 
-| Entidade | Campos principais | Motivo |
+| Entidade | Campos | Por que foram escolhidos |
 | --- | --- | --- |
-| `ReviewData` (`avaliacoes`) | `id`, `gameId`, autor, nota, texto e contagem de utilidade | Representa a avaliação publicada para um jogo. O `gameId` mantém a relação com o catálogo. |
-| `WishlistEntry` (`lista_desejos`) | `id`, `gameId` e data de adição | Persiste apenas a referência do jogo; os dados visuais do catálogo continuam centralizados em `storeGames`. |
-| `Usuario` (`usuarios`) | `id`, nome, usuário, e-mail e senha | Guarda os dados usados no cadastro e na validação do login local. |
+| [`ReviewData`](app/src/main/java/com/example/gamecore/GameData.kt) → `avaliacoes` | `id`, `gameId`, `author`, `rating`, `text`, `helpful` | O `id` identifica a avaliação que será editada ou aberta no detalhe; `gameId` liga o comentário a um jogo do catálogo; os outros campos mostram autor, nota, texto e votos úteis. |
+| [`WishlistEntry`](app/src/main/java/com/example/gamecore/data/WishlistEntry.kt) → `lista_desejos` | `id`, `gameId`, `adicionadoEm` | Guardamos o identificador do jogo e a data da inclusão. Nome, capa e preço são obtidos do catálogo ao montar a tela, evitando duplicar esses dados no banco. |
 
-As entidades usam `@PrimaryKey(autoGenerate = true)` com `id: Int = 0`.
+As duas entidades têm `id: Int = 0` com `@PrimaryKey(autoGenerate = true)`. `WishlistEntry` também tem um índice único em `gameId` para impedir que o mesmo jogo seja salvo duas vezes.
 
-- [ReviewDao](app/src/main/java/com/example/gamecore/data/ReviewDao.kt) possui `inserir`, `buscarTodos`, `atualizar`, `deletar`, `buscarPorId` e `buscarPorJogoId`.
-- [WishlistDao](app/src/main/java/com/example/gamecore/data/WishlistDao.kt) possui o mesmo CRUD e consultas por ID e por jogo.
-- [UsuarioDAO](app/src/main/java/com/example/gamecore/data/UsuarioDAO.kt) possui inserção, consultas para cadastro/login e os métodos de atualizar e excluir.
-- [AppDatabase](app/src/main/java/com/example/gamecore/data/AppDatabase.kt) reúne as entidades e expõe os três DAOs por meio de um singleton com `@Volatile` e `synchronized`.
+[`AppDatabase`](app/src/main/java/com/example/gamecore/data/AppDatabase.kt) reúne as entidades e expõe seus DAOs. A instância do banco é criada com `Room.databaseBuilder` e reutilizada por meio de `companion object`, `@Volatile` e `synchronized`, como no exemplo de aula. A versão atual do banco é 2 porque a tabela adicional de usuários foi incluída depois; a migração de 1 para 2 cria essa tabela sem apagar avaliações e desejos existentes.
 
-Todas as operações dos DAOs são `suspend` e são chamadas dentro de `viewModelScope.launch(Dispatchers.IO)`, com `try/catch` e registro via `Log.e`. Após cada alteração, o estado observado pelo Compose é atualizado na thread principal.
+As telas de cadastro e login usam uma terceira entidade, [`Usuario`](app/src/main/java/com/example/gamecore/data/Usuario.kt), e o [`UsuarioDAO`](app/src/main/java/com/example/gamecore/data/UsuarioDAO.kt). Essa funcionalidade local foi acrescentada ao projeto, embora o enunciado do Trabalho 3 não peça login. Ela não usa servidor, API ou sincronização. A demonstração de persistência solicitada pelo professor deve se concentrar em avaliações e lista de desejos.
 
-### Cadastro e login
+## Consultas dos DAOs
 
-O cadastro grava um `Usuario` na tabela `usuarios` e verifica se o e-mail ou o nome de usuário já foi usado. O login consulta o mesmo banco por e-mail e senha antes de abrir a loja. Para facilitar a demonstração, o primeiro acesso cria a conta local `matheus@gmail.com` com a senha `12345678`.
+[`ReviewDao`](app/src/main/java/com/example/gamecore/data/ReviewDao.kt) e [`WishlistDao`](app/src/main/java/com/example/gamecore/data/WishlistDao.kt) têm `@Insert`, `@Query` para buscar todos, `@Update` e `@Delete`; todos os métodos são `suspend`. Acrescentamos `buscarPorId(id)` para localizar uma linha específica. `ReviewDao` também tem `buscarPorJogoId(gameId)`, que permite selecionar avaliações de um jogo. Em `WishlistDao`, `buscarPorJogoId(gameId)` ajuda a localizar o item correto antes de removê-lo.
 
-Esse fluxo é didático e local, seguindo a estrutura simples trabalhada em aula. Em uma aplicação publicada, a autenticação deveria ser feita por um servidor e a senha não deveria ser guardada em texto puro.
+As operações do banco são iniciadas em `viewModelScope.launch(Dispatchers.IO)` no [`GameCoreViewModel`](app/src/main/java/com/example/gamecore/GameCoreViewModel.kt). Quando a leitura ou escrita termina, a lista observada pelo Compose é atualizada na thread principal. Os erros são tratados com `try/catch` e `Log.e`.
 
-## Fluxos demonstráveis
+## CRUD nas telas
 
-### Lista de desejos
+Na Lista de desejos, o botão do detalhe do jogo insere uma linha em `lista_desejos`. A tela busca novamente os itens quando abre, usando `LaunchedEffect(Unit)`, e o botão **Remover** apaga a linha pelo DAO. O DAO também contém `atualizar`, mas a interface não oferece edição para esse tipo de item, pois só há a referência ao jogo e a data da inclusão.
 
-1. Abra um jogo e toque em **Adicionar à lista de desejos**.
-2. A entrada é inserida na tabela `lista_desejos`.
-3. Abra Configurações → Lista de desejos e remova o item para executar o `@Delete` persistido.
-4. Feche e reabra o app: os itens não removidos continuam na lista.
+Em Avaliações, o formulário publica uma nova avaliação com `inserir`. A lista é carregada ao abrir a tela e mostra somente as avaliações do jogo escolhido. Ao abrir uma avaliação, podemos editar nota e texto e salvar com `atualizar`; o botão **Remover** usa `deletar`. Esse é o fluxo de inserir, buscar, atualizar e remover que apresentaremos em sala.
 
-### Avaliações (CRUD completo)
+O detalhe da avaliação recebe apenas o `reviewId` na rota. Ao abrir, [`MainActivity`](app/src/main/java/com/example/gamecore/MainActivity.kt) chama `loadReviewForDetail(id)`, e o ViewModel busca a avaliação por `ReviewDao.buscarPorId(id)`. Assim, o detalhe lê o item diretamente do banco, como pede a seção 3.3 do enunciado.
 
-1. Adicione um jogo ao carrinho e finalize a compra para colocá-lo na biblioteca.
-2. Abra o jogo e toque em **Ver avaliações**.
-3. Publique uma avaliação: a tela executa o `@Insert` no Room.
-4. Abra a própria avaliação, edite nota ou texto e salve: a tela executa o `@Update`.
-5. Remova a avaliação: a tela executa o `@Delete`.
-6. Feche e abra o aplicativo para confirmar que a avaliação que permaneceu no banco continua disponível.
+## Dificuldades e soluções
 
-As telas de Lista de desejos e Avaliações disparam uma atualização com `LaunchedEffect` ao serem abertas. O detalhe de avaliação recebe apenas seu `reviewId` pela navegação e chama `ReviewDao.buscarPorId(id)` através do ViewModel; o objeto não é passado pronto entre telas.
+A mudança mais importante foi deixar a lista da interface depender do resultado do banco. Durante a integração, a Lista de desejos chegou a mostrar um jogo antes de confirmar que o Room o havia salvo. Corrigimos esse fluxo: agora a tela é atualizada depois de `inserir` e `buscarTodos`, e um conjunto de inclusões pendentes impede toques repetidos enquanto a gravação está em andamento. Na remoção, a lista também é relida depois do `deletar`.
 
-## Evidências e apresentação
+Outro ajuste foi na compilação do Room com a versão de Kotlin e KSP usada pelo projeto. A versão inicial do Room produziu erro no código gerado; a atualização da dependência para 2.8.5 permitiu compilar novamente. Mantivemos as chamadas aos DAOs em `Dispatchers.IO` para não executar acesso ao SQLite na thread da interface.
 
-As capturas de interface e o vídeo da etapa anterior estão em [documentacao/](documentacao/README.md). Para registrar a evidência específica desta etapa — inserir um item, fechar o app e reabri-lo — siga o [roteiro de persistência Room](documentacao/roteiro-persistencia-room.md) em um aparelho ou emulador. O roteiro também cobre inserir, editar e excluir uma avaliação para a apresentação ao vivo.
+Gabriel Henrique Alves Raatz e Matheus Pupia tiveram dificuldade para decidir como organizar as tabelas do banco. A escolha foi guardar as avaliações e os identificadores dos jogos da Lista de desejos em tabelas separadas. O catálogo continuou no código, pois não precisava ser persistido nesta etapa. Assim, a Lista de desejos consulta o Room e usa o `gameId` para mostrar os dados do jogo.
 
-## Tecnologias
+## Evidências da etapa 3
 
-- Kotlin
-- Jetpack Compose e Material 3
-- Navigation Compose
-- Room (`room-runtime`, `room-ktx` e KSP `room-compiler`)
-- Coroutines / `Dispatchers.IO`
+O [vídeo da equipe](https://www.youtube.com/shorts/yGpeYdXlEx0) mostra o cadastro, a navegação pelo aplicativo e a Lista de desejos. Ele não mostra com clareza a sequência completa **adicionar → fechar completamente → reabrir → encontrar o mesmo item**. O [roteiro de gravação](documentacao/roteiro-persistencia-room.md) indica como registrar esse teste, ainda necessário para comprovar a persistência pedida pelo professor. As imagens e o vídeo antigos eram do Trabalho 2 e foram retirados por não comprovarem esta etapa.
+
+Para a apresentação, mostre também uma avaliação sendo inserida, editada e removida. Depois publique outra avaliação e repita o teste de fechar e reabrir. Não use **Limpar dados** nem desinstale o aplicativo entre essas duas partes, porque isso apagaria o banco local.
