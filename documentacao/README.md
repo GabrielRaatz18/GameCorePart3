@@ -1,17 +1,17 @@
-# Evidências do Trabalho 3
+# Documentação e evidências do Trabalho 3
 
-Esta pasta reúne o roteiro para registrar o aplicativo com Room em funcionamento. O relato das decisões, das entidades, das consultas e das dificuldades está no [README principal](../README.md).
+O [PDF da documentação](GameCore_Trabalho_3_Documentacao.pdf) apresenta a evolução do Trabalho 2, a estrutura do Room, as consultas, o CRUD e as dificuldades enfrentadas. O [README principal](../README.md) também explica como executar o projeto.
 
 ## Vídeo da equipe
 
-[Assista à gravação do GameCore](https://www.youtube.com/shorts/yGpeYdXlEx0). O vídeo mostra cadastro, navegação e a Lista de desejos. Não é possível confirmar por ele, com clareza, o teste de fechar completamente o aplicativo e encontrar o mesmo item ao reabrir. A gravação antiga e as imagens do Trabalho 2 foram retiradas porque mostram apenas as telas antes da persistência.
+[Assista à gravação do GameCore](https://www.youtube.com/shorts/yGpeYdXlEx0). O vídeo mostra o cadastro, a navegação, a Lista de desejos e uma avaliação salva. Perto de 1:39, a avaliação está na tela; o app sai para a tela inicial do celular e é aberto novamente; perto de 1:59, a mesma avaliação aparece. A gravação antiga e as imagens do Trabalho 2 foram retiradas porque não demonstravam a persistência desta etapa.
 
-## O que falta registrar
+## Apresentação em sala
 
-Use o [roteiro de gravação](roteiro-persistencia-room.md) para produzir:
+O [roteiro de apresentação](roteiro-persistencia-room.md) ajuda a repetir os fluxos ao vivo:
 
-1. Um vídeo curto com a inclusão de um jogo na Lista de desejos, o fechamento completo do app e a volta do mesmo jogo após a reabertura.
-2. Um vídeo ou sequência de prints com uma avaliação publicada, editada e removida.
-3. Prints legíveis da Lista de desejos antes e depois de fechar o app.
+1. Inserir e remover um jogo da Lista de desejos.
+2. Publicar, editar e remover uma avaliação.
+3. Fechar e reabrir o app para mostrar um registro mantido no Room.
 
-Depois de gravar, coloque os arquivos nesta pasta ou publique o vídeo e adicione links para eles aqui e no README principal. O teste precisa ser feito sem limpar os dados nem desinstalar o aplicativo entre o fechamento e a reabertura.
+No teste de reabertura, não limpe os dados nem desinstale o aplicativo, pois isso apaga o banco local.
