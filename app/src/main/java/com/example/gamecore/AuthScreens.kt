@@ -76,8 +76,10 @@ fun GameCoreLogo(modifier: Modifier = Modifier) {
 
 @Composable
 fun LoginScreen(
-    onLoginSuccess: (String) -> Unit,
-    onOpenRegister: () -> Unit
+    onLogin: (email: String, password: String) -> Unit,
+    onOpenRegister: () -> Unit,
+    authError: String? = null,
+    isSubmitting: Boolean = false
 ) {
     val context = LocalContext.current
 
@@ -224,18 +226,27 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(36.dp))
 
             GameCorePrimaryButton(
-                text = "Entrar",
+                text = if (isSubmitting) "Entrando..." else "Entrar",
                 modifier = Modifier.fillMaxWidth(),
                 leadingIcon = R.drawable.ic_lock,
+                enabled = !isSubmitting,
                 onClick = {
                     if (android.util.Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches() && password.length >= 6) {
-                        Toast.makeText(context, "Login efetuado com sucesso!", Toast.LENGTH_SHORT).show()
-                        onLoginSuccess(email.trim())
+                        onLogin(email.trim(), password)
                     } else {
                         Toast.makeText(context, "Informe um e-mail válido e uma senha com ao menos 6 caracteres.", Toast.LENGTH_SHORT).show()
                     }
                 }
             )
+
+            authError?.let { message ->
+                Text(
+                    text = message,
+                    color = GameCoreColors.Error,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 10.dp)
+                )
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -261,8 +272,10 @@ fun LoginScreen(
 
 @Composable
 fun RegisterScreen(
-    onRegisterSuccess: (name: String, username: String, email: String) -> Unit,
-    onOpenLogin: () -> Unit
+    onRegister: (name: String, username: String, email: String, password: String) -> Unit,
+    onOpenLogin: () -> Unit,
+    authError: String? = null,
+    isSubmitting: Boolean = false
 ) {
     val context = LocalContext.current
 
@@ -486,8 +499,9 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(36.dp))
 
             GameCorePrimaryButton(
-                text = "Cadastrar",
+                text = if (isSubmitting) "Cadastrando..." else "Cadastrar",
                 modifier = Modifier.fillMaxWidth(),
+                enabled = !isSubmitting,
                 onClick = {
                     if (name.isBlank() || username.isBlank() || email.isBlank() || password.isBlank()) {
                         Toast.makeText(context, "Preencha todos os campos.", Toast.LENGTH_SHORT).show()
@@ -496,11 +510,19 @@ fun RegisterScreen(
                     } else if (password.length < 6) {
                         Toast.makeText(context, "A senha deve ter ao menos 6 caracteres.", Toast.LENGTH_SHORT).show()
                     } else {
-                        Toast.makeText(context, "Cadastro realizado com sucesso!", Toast.LENGTH_SHORT).show()
-                        onRegisterSuccess(name, username, email)
+                        onRegister(name.trim(), username.trim(), email.trim(), password)
                     }
                 }
             )
+
+            authError?.let { message ->
+                Text(
+                    text = message,
+                    color = GameCoreColors.Error,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 10.dp)
+                )
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
 

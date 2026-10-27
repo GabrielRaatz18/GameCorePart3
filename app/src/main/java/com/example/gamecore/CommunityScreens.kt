@@ -216,6 +216,7 @@ private fun GameListCard(
 
 @Composable
 fun ProfileScreen(
+    currentUser: UserData,
     library: List<GameData>,
     cartCount: Int,
     onOpenGame: (GameData) -> Unit,
@@ -255,12 +256,12 @@ fun ProfileScreen(
                     Spacer(modifier = Modifier.width(14.dp))
                     Column {
                         Text(
-                            text = "Matheus",
+                            text = currentUser.name,
                             color = GameCoreColors.TextPrimary,
                             style = MaterialTheme.typography.headlineMedium
                         )
                         Text(
-                            text = "@MatheusP",
+                            text = "@${currentUser.username}",
                             color = GameCoreColors.TextSecondary
                         )
                         Spacer(modifier = Modifier.height(8.dp))
@@ -323,6 +324,7 @@ fun ProfileScreen(
 
 @Composable
 fun SettingsScreen(
+    currentUser: UserData,
     cartCount: Int,
     gamesCount: Int,
     wishlistCount: Int,
@@ -375,14 +377,14 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "Matheus",
+                text = currentUser.name,
                 color = GameCoreColors.TextPrimary,
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold
             )
 
             Text(
-                text = "@matheus",
+                text = "@${currentUser.username}",
                 color = GameCoreColors.TextSecondary,
                 style = MaterialTheme.typography.bodyMedium
             )

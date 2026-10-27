@@ -20,7 +20,7 @@ No Trabalho 2, `GameCoreViewModel` mantinha as listas em memória. Isso permitia
 | Adicionar / editar / remover avaliação | Apenas durante a sessão | CRUD persistido no SQLite local |
 | Detalhe de avaliação | Procurava na lista em memória | Busca a avaliação pelo ID recebido na rota |
 
-O carrinho, a biblioteca e a sessão continuam sendo estados temporários porque esta etapa concentra a persistência nas duas listas que já possuíam interações completas na interface: Lista de desejos e Avaliações.
+O carrinho e a biblioteca continuam sendo estados temporários porque esta etapa concentra a persistência nas listas que já possuíam interações completas na interface: Lista de desejos e Avaliações.
 
 ## Estrutura do banco
 
@@ -28,14 +28,22 @@ O carrinho, a biblioteca e a sessão continuam sendo estados temporários porque
 | --- | --- | --- |
 | `ReviewData` (`avaliacoes`) | `id`, `gameId`, autor, nota, texto e contagem de utilidade | Representa a avaliação publicada para um jogo. O `gameId` mantém a relação com o catálogo. |
 | `WishlistEntry` (`lista_desejos`) | `id`, `gameId` e data de adição | Persiste apenas a referência do jogo; os dados visuais do catálogo continuam centralizados em `storeGames`. |
+| `Usuario` (`usuarios`) | `id`, nome, usuário, e-mail e senha | Guarda os dados usados no cadastro e na validação do login local. |
 
-As duas entidades usam `@PrimaryKey(autoGenerate = true)` com `id: Int = 0`.
+As entidades usam `@PrimaryKey(autoGenerate = true)` com `id: Int = 0`.
 
 - [ReviewDao](app/src/main/java/com/example/gamecore/data/ReviewDao.kt) possui `inserir`, `buscarTodos`, `atualizar`, `deletar`, `buscarPorId` e `buscarPorJogoId`.
 - [WishlistDao](app/src/main/java/com/example/gamecore/data/WishlistDao.kt) possui o mesmo CRUD e consultas por ID e por jogo.
-- [AppDatabase](app/src/main/java/com/example/gamecore/data/AppDatabase.kt) reúne as entidades e expõe os dois DAOs por meio de um singleton com `@Volatile` e `synchronized`.
+- [UsuarioDAO](app/src/main/java/com/example/gamecore/data/UsuarioDAO.kt) possui inserção, consultas para cadastro/login e os métodos de atualizar e excluir.
+- [AppDatabase](app/src/main/java/com/example/gamecore/data/AppDatabase.kt) reúne as entidades e expõe os três DAOs por meio de um singleton com `@Volatile` e `synchronized`.
 
 Todas as operações dos DAOs são `suspend` e são chamadas dentro de `viewModelScope.launch(Dispatchers.IO)`, com `try/catch` e registro via `Log.e`. Após cada alteração, o estado observado pelo Compose é atualizado na thread principal.
+
+### Cadastro e login
+
+O cadastro grava um `Usuario` na tabela `usuarios` e verifica se o e-mail ou o nome de usuário já foi usado. O login consulta o mesmo banco por e-mail e senha antes de abrir a loja. Para facilitar a demonstração, o primeiro acesso cria a conta local `matheus@gmail.com` com a senha `12345678`.
+
+Esse fluxo é didático e local, seguindo a estrutura simples trabalhada em aula. Em uma aplicação publicada, a autenticação deveria ser feita por um servidor e a senha não deveria ser guardada em texto puro.
 
 ## Fluxos demonstráveis
 

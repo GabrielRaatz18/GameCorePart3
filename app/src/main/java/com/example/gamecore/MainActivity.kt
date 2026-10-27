@@ -76,24 +76,36 @@ fun MainApp(viewModel: GameCoreViewModel) {
         ) {
             composable(Routes.Login) {
                 LoginScreen(
-                    onLoginSuccess = { email ->
-                        viewModel.signIn(email)
-                        navController.navigate(Routes.Store) {
-                            popUpTo(Routes.Login) { inclusive = true }
+                    onLogin = { email, password ->
+                        viewModel.signIn(email, password) {
+                            navController.navigate(Routes.Store) {
+                                popUpTo(Routes.Login) { inclusive = true }
+                            }
                         }
                     },
-                    onOpenRegister = { navController.navigate(Routes.Register) }
+                    onOpenRegister = {
+                        viewModel.clearAuthError()
+                        navController.navigate(Routes.Register)
+                    },
+                    authError = viewModel.authError,
+                    isSubmitting = viewModel.isAuthenticating
                 )
             }
             composable(Routes.Register) {
                 RegisterScreen(
-                    onRegisterSuccess = { name, username, email ->
-                        viewModel.register(name, username, email)
-                        navController.navigate(Routes.Store) {
-                            popUpTo(Routes.Register) { inclusive = true }
+                    onRegister = { name, username, email, password ->
+                        viewModel.register(name, username, email, password) {
+                            navController.navigate(Routes.Store) {
+                                popUpTo(Routes.Register) { inclusive = true }
+                            }
                         }
                     },
-                    onOpenLogin = { navController.popBackStack() }
+                    onOpenLogin = {
+                        viewModel.clearAuthError()
+                        navController.popBackStack()
+                    },
+                    authError = viewModel.authError,
+                    isSubmitting = viewModel.isAuthenticating
                 )
             }
             composable(Routes.Store) {
@@ -129,6 +141,7 @@ fun MainApp(viewModel: GameCoreViewModel) {
             }
             composable(Routes.Profile) {
                 ProfileScreen(
+                    currentUser = viewModel.currentUser,
                     library = library,
                     cartCount = cart.size,
                     onOpenGame = { navController.navigate(Routes.game(it.id)) },
@@ -139,6 +152,7 @@ fun MainApp(viewModel: GameCoreViewModel) {
             }
             composable(Routes.Settings) {
                 SettingsScreen(
+                    currentUser = viewModel.currentUser,
                     cartCount = cart.size,
                     gamesCount = library.size,
                     wishlistCount = wishlist.count { wish -> !library.any { it.id == wish.id } },

@@ -8,16 +8,13 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gamecore.data.AppDatabase
+import com.example.gamecore.data.Usuario
 import com.example.gamecore.data.WishlistEntry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
-/**
- * Centraliza o estado da interface e sincroniza as listas persistentes com o Room.
- * O carrinho e a sessão continuam sendo estados temporários; avaliações e lista de
- * desejos são carregadas novamente do banco sempre que suas telas são abertas.
- */
 class GameCoreViewModel : ViewModel() {
     private var database: AppDatabase? = null
     private var wishlistEntries: List<WishlistEntry> = emptyList()
@@ -34,36 +31,122 @@ class GameCoreViewModel : ViewModel() {
     var reviews by mutableStateOf<List<ReviewData>>(emptyList())
         private set
 
-    /** A avaliação exibida no detalhe é buscada pelo id recebido na navegação. */
     var reviewForDetail by mutableStateOf<ReviewData?>(null)
         private set
 
     var currentUser by mutableStateOf(UserData("guest", "Matheus", "MatheusP", "matheus@gmail.com"))
         private set
 
-    /**
-     * É chamado pela Activity uma única vez. A construção do banco não faz I/O;
-     * as leituras e escritas abaixo sempre são executadas em Dispatchers.IO.
-     */
+    var authError by mutableStateOf<String?>(null)
+        private set
+
+    var isAuthenticating by mutableStateOf(false)
+        private set
+
     fun initializeDatabase(context: Context) {
         if (database != null) return
 
         database = AppDatabase.getInstance(context.applicationContext)
+        seedDemoAccount()
         loadWishlist()
         loadReviews()
     }
 
-    fun signIn(email: String) {
-        val username = email.substringBefore('@').ifBlank { "jogador" }
-        currentUser = UserData(username.lowercase(), username, username, email.trim())
-        loadWishlist()
-        loadReviews()
+    fun signIn(email: String, password: String, onSuccess: () -> Unit) {
+        val usuarioDao = database?.usuarioDao()
+        if (usuarioDao == null) {
+            authError = "O banco de usuários ainda não está disponível. Tente novamente."
+            return
+        }
+
+        authError = null
+        isAuthenticating = true
+        val normalizedEmail = normalizeEmail(email)
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val usuario = usuarioDao.buscarLogin(normalizedEmail, password)
+                withContext(Dispatchers.Main) {
+                    isAuthenticating = false
+                    if (usuario != null) {
+                        currentUser = usuario.toUserData()
+                        refreshPersistentLists()
+                        onSuccess()
+                    } else {
+                        authError = "E-mail ou senha incorretos."
+                    }
+                }
+            } catch (error: Exception) {
+                Log.e(TAG, "Não foi possível realizar o login.", error)
+                withContext(Dispatchers.Main) {
+                    isAuthenticating = false
+                    authError = "Não foi possível entrar agora. Tente novamente."
+                }
+            }
+        }
     }
 
-    fun register(name: String, username: String, email: String) {
-        currentUser = UserData(username.lowercase(), name.trim(), username.trim(), email.trim())
-        loadWishlist()
-        loadReviews()
+    fun register(
+        name: String,
+        username: String,
+        email: String,
+        password: String,
+        onSuccess: () -> Unit
+    ) {
+        val usuarioDao = database?.usuarioDao()
+        if (usuarioDao == null) {
+            authError = "O banco de usuários ainda não está disponível. Tente novamente."
+            return
+        }
+
+        authError = null
+        isAuthenticating = true
+        val normalizedUsername = normalizeUsername(username)
+        val normalizedEmail = normalizeEmail(email)
+        val cleanName = name.trim()
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                when {
+                    usuarioDao.buscarPorEmail(normalizedEmail) != null -> {
+                        publishAuthError("Já existe uma conta com este e-mail.")
+                    }
+
+                    usuarioDao.buscarPorUsuario(normalizedUsername) != null -> {
+                        publishAuthError("Este nome de usuário já está em uso.")
+                    }
+
+                    else -> {
+                        val usuario = Usuario(
+                            nome = cleanName,
+                            usuario = normalizedUsername,
+                            email = normalizedEmail,
+                            senha = password
+                        )
+                        val id = usuarioDao.inserir(usuario)
+                        withContext(Dispatchers.Main) {
+                            isAuthenticating = false
+                            if (id > 0) {
+                                currentUser = usuario.copy(id = id.toInt()).toUserData()
+                                refreshPersistentLists()
+                                onSuccess()
+                            } else {
+                                authError = "Não foi possível criar a conta. Tente outro e-mail ou usuário."
+                            }
+                        }
+                    }
+                }
+            } catch (error: Exception) {
+                Log.e(TAG, "Não foi possível cadastrar o usuário.", error)
+                withContext(Dispatchers.Main) {
+                    isAuthenticating = false
+                    authError = "Não foi possível criar a conta. Tente novamente."
+                }
+            }
+        }
+    }
+
+    fun clearAuthError() {
+        authError = null
     }
 
     fun signOut() {
@@ -73,6 +156,8 @@ class GameCoreViewModel : ViewModel() {
         wishlistEntries = emptyList()
         reviewForDetail = null
         currentUser = UserData("guest", "Matheus", "MatheusP", "matheus@gmail.com")
+        authError = null
+        isAuthenticating = false
     }
 
     fun addToCart(game: GameData): Boolean = if (cart.any { it.id == game.id }) {
@@ -82,11 +167,9 @@ class GameCoreViewModel : ViewModel() {
         true
     }
 
-    /** Insere o jogo na lista de desejos persistida no Room. */
     fun addToWishlist(game: GameData): Boolean {
         if (library.any { it.id == game.id } || wishlist.any { it.id == game.id }) return false
 
-        // Atualização otimista para a ação aparecer imediatamente na tela.
         wishlist = wishlist + game
 
         val wishlistDao = database?.wishlistDao() ?: return true
@@ -113,7 +196,6 @@ class GameCoreViewModel : ViewModel() {
         cart = cart.filterNot { it.id == game.id }
     }
 
-    /** Remove a mesma linha que aparece na UI da tabela lista_desejos. */
     fun removeFromWishlist(game: GameData) {
         val entry = wishlistEntries.firstOrNull { it.gameId == game.id }
         wishlist = wishlist.filterNot { it.id == game.id }
@@ -161,7 +243,6 @@ class GameCoreViewModel : ViewModel() {
         }
     }
 
-    /** Lê a tabela de avaliações para alimentar a LazyColumn da tela. */
     fun loadReviews() {
         val reviewDao = database?.reviewDao() ?: return
         viewModelScope.launch(Dispatchers.IO) {
@@ -176,7 +257,6 @@ class GameCoreViewModel : ViewModel() {
         }
     }
 
-    /** Lê a tabela de lista de desejos e relaciona cada id ao catálogo estático. */
     fun loadWishlist() {
         val wishlistDao = database?.wishlistDao() ?: return
         viewModelScope.launch(Dispatchers.IO) {
@@ -191,7 +271,6 @@ class GameCoreViewModel : ViewModel() {
         }
     }
 
-    /** Insere uma nova avaliação no Room e recebe o id autogerado. */
     fun addReview(gameId: String, rating: Int, text: String) {
         val newReview = ReviewData(
             gameId = gameId,
@@ -201,7 +280,6 @@ class GameCoreViewModel : ViewModel() {
         )
         val reviewDao = database?.reviewDao()
 
-        // Mantém os testes locais e previews utilizáveis sem um Context Android.
         if (reviewDao == null) {
             val localId = (reviews.minOfOrNull { it.id } ?: 0) - 1
             reviews = reviews + newReview.copy(id = localId)
@@ -220,7 +298,6 @@ class GameCoreViewModel : ViewModel() {
         }
     }
 
-    /** Atualiza a linha editada na tela de detalhe. */
     fun updateReview(updated: ReviewData) {
         val previousReviews = reviews
         reviews = reviews.map { review -> if (review.id == updated.id) updated else review }
@@ -239,7 +316,6 @@ class GameCoreViewModel : ViewModel() {
         }
     }
 
-    /** Exclui a avaliação persistida, além de removê-la da lista apresentada. */
     fun removeReview(review: ReviewData) {
         val previousReviews = reviews
         reviews = reviews.filterNot { it.id == review.id }
@@ -258,10 +334,6 @@ class GameCoreViewModel : ViewModel() {
         }
     }
 
-    /**
-     * Cumpre o fluxo de detalhe obrigatório: a avaliação não é passada pronta pela
-     * navegação; ela é consultada pelo id diretamente no DAO.
-     */
     fun loadReviewForDetail(id: Int) {
         reviewForDetail = null
         val reviewDao = database?.reviewDao()
@@ -281,6 +353,52 @@ class GameCoreViewModel : ViewModel() {
             }
         }
     }
+
+    private fun seedDemoAccount() {
+        val usuarioDao = database?.usuarioDao() ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                if (usuarioDao.buscarPorEmail(DEMO_EMAIL) == null) {
+                    usuarioDao.inserir(
+                        Usuario(
+                            nome = "Matheus",
+                            usuario = "matheusp",
+                            email = DEMO_EMAIL,
+                            senha = DEMO_PASSWORD
+                        )
+                    )
+                }
+            } catch (error: Exception) {
+                Log.e(TAG, "Não foi possível preparar a conta de demonstração.", error)
+            }
+        }
+    }
+
+    private fun refreshPersistentLists() {
+        loadWishlist()
+        loadReviews()
+    }
+
+    private suspend fun publishAuthError(message: String) {
+        withContext(Dispatchers.Main) {
+            isAuthenticating = false
+            authError = message
+        }
+    }
+
+    private fun normalizeEmail(value: String): String = value.trim().lowercase(Locale.ROOT)
+
+    private fun normalizeUsername(value: String): String = value
+        .trim()
+        .removePrefix("@")
+        .lowercase(Locale.ROOT)
+
+    private fun Usuario.toUserData(): UserData = UserData(
+        id = id.toString(),
+        name = nome,
+        username = usuario,
+        email = email
+    )
 
     private fun updateWishlist(entries: List<WishlistEntry>) {
         wishlistEntries = entries
@@ -302,5 +420,7 @@ class GameCoreViewModel : ViewModel() {
 
     private companion object {
         const val TAG = "GameCoreViewModel"
+        const val DEMO_EMAIL = "matheus@gmail.com"
+        const val DEMO_PASSWORD = "12345678"
     }
 }

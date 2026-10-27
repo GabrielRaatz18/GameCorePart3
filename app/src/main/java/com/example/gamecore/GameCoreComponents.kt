@@ -541,10 +541,12 @@ fun GameCorePrimaryButton(
     text: String,
     modifier: Modifier = Modifier,
     @DrawableRes leadingIcon: Int? = null,
+    enabled: Boolean = true,
     onClick: () -> Unit = {}
 ) {
     Button(
         onClick = onClick,
+        enabled = enabled,
         modifier = modifier.height(GameCoreDimens.ButtonHeight),
         shape = RoundedCornerShape(GameCoreDimens.ButtonRadius),
         colors = ButtonDefaults.buttonColors(
