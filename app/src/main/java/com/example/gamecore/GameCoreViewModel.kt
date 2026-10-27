@@ -35,7 +35,7 @@ class GameCoreViewModel : ViewModel() {
     var reviewForDetail by mutableStateOf<ReviewData?>(null)
         private set
 
-    var currentUser by mutableStateOf(UserData("guest", "Matheus", "MatheusP", "matheus@gmail.com"))
+    var currentUser by mutableStateOf(UserData("guest", "", "", ""))
         private set
 
     var authError by mutableStateOf<String?>(null)
@@ -48,9 +48,6 @@ class GameCoreViewModel : ViewModel() {
         if (database != null) return
 
         database = AppDatabase.getInstance(context.applicationContext)
-        seedDemoAccount()
-        loadWishlist()
-        loadReviews()
     }
 
     fun signIn(email: String, password: String, onSuccess: () -> Unit) {
@@ -155,8 +152,9 @@ class GameCoreViewModel : ViewModel() {
         library = emptyList()
         wishlist = emptyList()
         wishlistEntries = emptyList()
+        reviews = emptyList()
         reviewForDetail = null
-        currentUser = UserData("guest", "Matheus", "MatheusP", "matheus@gmail.com")
+        currentUser = UserData("guest", "", "", "")
         authError = null
         isAuthenticating = false
     }
@@ -358,26 +356,6 @@ class GameCoreViewModel : ViewModel() {
         }
     }
 
-    private fun seedDemoAccount() {
-        val usuarioDao = database?.usuarioDao() ?: return
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                if (usuarioDao.buscarPorEmail(DEMO_EMAIL) == null) {
-                    usuarioDao.inserir(
-                        Usuario(
-                            nome = "Matheus",
-                            usuario = "matheusp",
-                            email = DEMO_EMAIL,
-                            senha = DEMO_PASSWORD
-                        )
-                    )
-                }
-            } catch (error: Exception) {
-                Log.e(TAG, "Não foi possível preparar a conta de demonstração.", error)
-            }
-        }
-    }
-
     private fun refreshPersistentLists() {
         loadWishlist()
         loadReviews()
@@ -424,7 +402,5 @@ class GameCoreViewModel : ViewModel() {
 
     private companion object {
         const val TAG = "GameCoreViewModel"
-        const val DEMO_EMAIL = "matheus@gmail.com"
-        const val DEMO_PASSWORD = "12345678"
     }
 }

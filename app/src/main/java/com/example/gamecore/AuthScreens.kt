@@ -83,8 +83,8 @@ fun LoginScreen(
 ) {
     val context = LocalContext.current
 
-    var email by remember { mutableStateOf("matheus@gmail.com") }
-    var password by remember { mutableStateOf("12345678") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
     var isPasswordVisible by remember { mutableStateOf(false) }
 
     Surface(
