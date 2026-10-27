@@ -46,7 +46,7 @@ fun GameScreen(
     onBack: () -> Unit = {},
     onOpenCart: () -> Unit = {},
     onAddToCart: () -> Boolean = { false },
-    onAddToWishlist: () -> Boolean = { false },
+    onAddToWishlist: ((Boolean) -> Unit) -> Unit = { it(false) },
     onOpenReviews: () -> Unit = {},
     isOwned: Boolean = false,
     isInWishlist: Boolean = false,
@@ -55,9 +55,7 @@ fun GameScreen(
 ) {
     val context = LocalContext.current
 
-    var isFavorite by remember(game.id, isInWishlist) {
-        mutableStateOf(isInWishlist)
-    }
+    var isAddingToWishlist by remember(game.id) { mutableStateOf(false) }
 
     val gameReviews = remember(reviews, game.id) {
         reviews.filter { it.gameId == game.id }
@@ -197,27 +195,24 @@ fun GameScreen(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     GameCoreSecondaryButton(
-                        text = if (isFavorite) "Jogo já está na lista de desejos" else "Adicionar à lista de desejos",
+                        text = if (isInWishlist) "Jogo já está na lista de desejos" else "Adicionar à lista de desejos",
                         modifier = Modifier.fillMaxWidth(),
                         leadingIcon = R.drawable.ic_favorite,
-                        iconTint = if (isFavorite) GameCoreColors.Orange else GameCoreColors.TextPrimary,
+                        iconTint = if (isInWishlist) GameCoreColors.Orange else GameCoreColors.TextPrimary,
                         onClick = {
-                            if (isFavorite) {
+                            if (isInWishlist) {
                                 Toast.makeText(
                                     context,
                                     "Este jogo já está na sua lista de desejos.",
                                     Toast.LENGTH_SHORT
                                 ).show()
-                            } else {
-                                val added = onAddToWishlist()
-                                isFavorite = added || isFavorite
-                                val message = if (added) "Adicionado à lista de desejos!" else "Este jogo já está na sua lista de desejos."
-
-                                Toast.makeText(
-                                    context,
-                                    message,
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                            } else if (!isAddingToWishlist) {
+                                isAddingToWishlist = true
+                                onAddToWishlist { added ->
+                                    isAddingToWishlist = false
+                                    val message = if (added) "Adicionado à lista de desejos!" else "Não foi possível adicionar à lista de desejos."
+                                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                                }
                             }
                         }
                     )

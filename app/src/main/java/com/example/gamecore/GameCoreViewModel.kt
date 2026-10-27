@@ -18,6 +18,7 @@ import java.util.Locale
 class GameCoreViewModel : ViewModel() {
     private var database: AppDatabase? = null
     private var wishlistEntries: List<WishlistEntry> = emptyList()
+    private val pendingWishlistAdds = mutableSetOf<String>()
 
     var cart by mutableStateOf<List<GameData>>(emptyList())
         private set
@@ -167,12 +168,19 @@ class GameCoreViewModel : ViewModel() {
         true
     }
 
-    fun addToWishlist(game: GameData): Boolean {
-        if (library.any { it.id == game.id } || wishlist.any { it.id == game.id }) return false
+    fun addToWishlist(game: GameData, onResult: (Boolean) -> Unit) {
+        if (library.any { it.id == game.id } || wishlist.any { it.id == game.id } ||
+            !pendingWishlistAdds.add(game.id)) {
+            onResult(false)
+            return
+        }
 
-        wishlist = wishlist + game
-
-        val wishlistDao = database?.wishlistDao() ?: return true
+        val wishlistDao = database?.wishlistDao()
+        if (wishlistDao == null) {
+            pendingWishlistAdds.remove(game.id)
+            onResult(false)
+            return
+        }
         val newEntry = WishlistEntry(gameId = game.id)
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -180,6 +188,8 @@ class GameCoreViewModel : ViewModel() {
                 val entries = wishlistDao.buscarTodos()
                 withContext(Dispatchers.Main) {
                     updateWishlist(entries)
+                    pendingWishlistAdds.remove(game.id)
+                    onResult(newId > 0)
                     if (newId == -1L) {
                         Log.w(TAG, "O jogo ${game.id} já estava salvo na lista de desejos.")
                     }
@@ -187,9 +197,12 @@ class GameCoreViewModel : ViewModel() {
             } catch (error: Exception) {
                 Log.e(TAG, "Não foi possível adicionar o jogo à lista de desejos.", error)
                 reloadWishlistAfterError(wishlistDao)
+                withContext(Dispatchers.Main) {
+                    pendingWishlistAdds.remove(game.id)
+                    onResult(false)
+                }
             }
         }
-        return true
     }
 
     fun removeFromCart(game: GameData) {
@@ -198,9 +211,6 @@ class GameCoreViewModel : ViewModel() {
 
     fun removeFromWishlist(game: GameData) {
         val entry = wishlistEntries.firstOrNull { it.gameId == game.id }
-        wishlist = wishlist.filterNot { it.id == game.id }
-        wishlistEntries = wishlistEntries.filterNot { it.gameId == game.id }
-
         val wishlistDao = database?.wishlistDao() ?: return
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -208,6 +218,8 @@ class GameCoreViewModel : ViewModel() {
                 if (persistedEntry != null) {
                     wishlistDao.deletar(persistedEntry)
                 }
+                val entries = wishlistDao.buscarTodos()
+                withContext(Dispatchers.Main) { updateWishlist(entries) }
             } catch (error: Exception) {
                 Log.e(TAG, "Não foi possível remover o jogo da lista de desejos.", error)
                 reloadWishlistAfterError(wishlistDao)
@@ -222,10 +234,6 @@ class GameCoreViewModel : ViewModel() {
         }
 
         library = (library + purchasedGames).distinctBy { it.id }
-        wishlist = wishlist.filterNot { wish -> purchasedGames.any { it.id == wish.id } }
-        wishlistEntries = wishlistEntries.filterNot { entry ->
-            purchasedGames.any { game -> game.id == entry.gameId }
-        }
         cart = emptyList()
 
         val wishlistDao = database?.wishlistDao() ?: return
@@ -236,6 +244,8 @@ class GameCoreViewModel : ViewModel() {
                     purchasedGames.mapNotNull { game -> wishlistDao.buscarPorJogoId(game.id) }
                 }
                 persistedEntries.forEach { entry -> wishlistDao.deletar(entry) }
+                val entries = wishlistDao.buscarTodos()
+                withContext(Dispatchers.Main) { updateWishlist(entries) }
             } catch (error: Exception) {
                 Log.e(TAG, "Não foi possível atualizar a lista de desejos após a compra.", error)
                 reloadWishlistAfterError(wishlistDao)
@@ -278,13 +288,7 @@ class GameCoreViewModel : ViewModel() {
             rating = rating.coerceIn(1, 5),
             text = text.trim()
         )
-        val reviewDao = database?.reviewDao()
-
-        if (reviewDao == null) {
-            val localId = (reviews.minOfOrNull { it.id } ?: 0) - 1
-            reviews = reviews + newReview.copy(id = localId)
-            return
-        }
+        val reviewDao = database?.reviewDao() ?: return
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -299,11 +303,11 @@ class GameCoreViewModel : ViewModel() {
     }
 
     fun updateReview(updated: ReviewData) {
+        val reviewDao = database?.reviewDao() ?: return
         val previousReviews = reviews
         reviews = reviews.map { review -> if (review.id == updated.id) updated else review }
         if (reviewForDetail?.id == updated.id) reviewForDetail = updated
 
-        val reviewDao = database?.reviewDao() ?: return
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 reviewDao.atualizar(updated)
@@ -317,11 +321,11 @@ class GameCoreViewModel : ViewModel() {
     }
 
     fun removeReview(review: ReviewData) {
+        val reviewDao = database?.reviewDao() ?: return
         val previousReviews = reviews
         reviews = reviews.filterNot { it.id == review.id }
         if (reviewForDetail?.id == review.id) reviewForDetail = null
 
-        val reviewDao = database?.reviewDao() ?: return
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 reviewDao.deletar(review)

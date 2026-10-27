@@ -208,7 +208,7 @@ fun MainApp(viewModel: GameCoreViewModel) {
                     onBack = { navController.popBackStack() },
                     onOpenCart = { destinations(GameCoreDestination.CART) },
                     onAddToCart = { viewModel.addToCart(game) },
-                    onAddToWishlist = { viewModel.addToWishlist(game) },
+                    onAddToWishlist = { onResult -> viewModel.addToWishlist(game, onResult) },
                     onOpenReviews = { navController.navigate(Routes.reviews(game.id)) },
                     isOwned = library.any { it.id == game.id },
                     isInWishlist = wishlist.any { it.id == game.id },

@@ -31,11 +31,12 @@ class ExampleUnitTest {
         val viewModel = GameCoreViewModel()
         val game = storeGames.first()
 
-        assertTrue(viewModel.addToWishlist(game))
         assertTrue(viewModel.addToCart(game))
         viewModel.checkout()
 
-        assertFalse(viewModel.addToWishlist(game))
+        var added: Boolean? = null
+        viewModel.addToWishlist(game) { added = it }
+        assertFalse(added!!)
     }
 
     @Test
