@@ -1,68 +1,131 @@
-# GameCore Trabalho 3
+# GameCore Trabalho 4 — Arquitetura MVVM
 
-Nós desenvolvemos o GameCore em Kotlin e Jetpack Compose. Nesta versão, usamos Room para guardar avaliações, itens da Lista de desejos e contas criadas no cadastro local. Continuamos o projeto que começamos no Trabalho 2.
+Nós desenvolvemos o GameCore em Kotlin e Jetpack Compose. No Trabalho 3, passamos a guardar avaliações, Lista de desejos e contas de usuário com Room. Neste Trabalho 4, não criamos nenhuma tela, campo ou funcionalidade nova: reorganizamos o mesmo app em MVVM (Model — View — ViewModel), com Repository, DAO reativo com `Flow`, `UiState` e `ViewModelFactory`.
 
 Integrantes: Gabriel Henrique Alves Raatz e Matheus Pupia.
+
+A documentação da etapa anterior continua em [documentacao/trabalho-3.md](documentacao/trabalho-3.md).
 
 ## Como executar
 
 1. Abrimos o projeto no Android Studio e aguardamos a sincronização do Gradle.
 2. Executamos o módulo `app` em um aparelho ou emulador com Android 7.0 (API 24) ou superior.
-3. No primeiro acesso, criamos uma conta em **Cadastrar** e entramos no aplicativo. Não deixamos uma conta de demonstração pronta.
-4. Para testar a Lista de desejos, abrimos um jogo na Loja e usamos o botão do detalhe. Para testar avaliações, concluímos uma compra simulada, abrimos o jogo na Biblioteca e entramos em **Ver avaliações**.
+3. No primeiro acesso, criamos uma conta em **Cadastrar** e entramos no aplicativo.
+4. Testamos os mesmos fluxos do Trabalho 3: Lista de desejos pelo detalhe do jogo, compra simulada para liberar a avaliação e **Ver avaliações** na Biblioteca.
 
-Configuramos `room-runtime`, `room-ktx` e `room-compiler` com KSP em [`app/build.gradle.kts`](app/build.gradle.kts). Para conferir a compilação e os testes locais pelo terminal, usamos `./gradlew :app:testDebugUnitTest` no macOS/Linux ou `.\gradlew.bat :app:testDebugUnitTest` no Windows.
+Para compilar pelo terminal, usamos `./gradlew :app:assembleDebug` no macOS/Linux ou `.\gradlew.bat :app:assembleDebug` no Windows.
 
-## Do Trabalho 2 para o Trabalho 3
+## Como estava no Trabalho 3 e o que mudou
 
-No Trabalho 2, mantínhamos a Lista de desejos e as avaliações em memória. Conseguíamos usar as telas, mas perdíamos os itens ao fechar o aplicativo. Nesta etapa, mantivemos os botões e passamos a ler e gravar essas listas no SQLite local pelos DAOs do Room. Também criamos cadastro e login com uma tabela de usuários no mesmo banco.
+No Trabalho 3, tínhamos um único `GameCoreViewModel` que recebia o `Context`, abria o `AppDatabase` e chamava os três DAOs direto. Cada ação usava `viewModelScope.launch(Dispatchers.IO)` e depois `withContext(Dispatchers.Main)`, e o estado ficava espalhado em várias variáveis `mutableStateOf` (`cart`, `library`, `wishlist`, `reviews`, `currentUser`, `authError`...). A tela de Lista de desejos e a de Avaliações usavam `LaunchedEffect` para buscar os dados de novo, e depois de cada `inserir`/`deletar` precisávamos chamar `buscarTodos()` na mão. Todos os arquivos (telas, modelos e ViewModel) estavam soltos no pacote raiz.
 
-Decidimos manter o carrinho e a Biblioteca temporários. Usamos a compra simulada para colocar um jogo na Biblioteca durante a sessão e liberar o formulário de avaliação. Mantivemos o catálogo em `storeGames`, sem criar uma tabela de jogos nesta etapa.
+Agora:
 
-## Estrutura do banco
+- Os arquivos estão divididos em pacotes (`ui`, `data.local`, `data.model`, `data.repository`, `viewmodel`).
+- Cada Entity tem um Repository, e só ele fala com o DAO.
+- `buscarTodos()` retorna `Flow<List<...>>`, então o Room avisa sozinho quando a tabela muda. Os `LaunchedEffect` de recarregar listas e as releituras manuais depois de inserir/remover deixaram de existir.
+- O `GameCoreViewModel` foi dividido em quatro ViewModels, um por responsabilidade, cada um com o seu `UiState` exposto como `StateFlow`.
+- As telas só coletam o `uiState` com `collectAsStateWithLifecycle()` e chamam métodos do ViewModel.
 
-Organizamos o banco em três partes: avaliações, Lista de desejos e cadastro/login. Criamos uma entidade para cada uma:
+## Como dividimos os pacotes
 
-| Entidade | Campos | Por que foram escolhidos |
+```
+com.example.gamecore
+├── MainActivity.kt            cria o banco e os Repositories e chama MainApp
+├── data
+│   ├── local                  Room: Entities, DAOs e AppDatabase
+│   │   ├── AppDatabase.kt
+│   │   ├── ReviewData.kt      ReviewDao.kt
+│   │   ├── WishlistEntry.kt   WishlistDao.kt
+│   │   └── Usuario.kt         UsuarioDAO.kt
+│   ├── model
+│   │   └── GameData.kt        GameData, UserData e o catálogo storeGames (não são tabelas)
+│   └── repository
+│       ├── ReviewRepository.kt
+│       ├── WishlistRepository.kt
+│       └── UsuarioRepository.kt
+├── viewmodel
+│   ├── AuthViewModel.kt       AuthUiState + AuthViewModel + AuthViewModelFactory
+│   ├── WishlistViewModel.kt   WishlistUiState + WishlistViewModel + WishlistViewModelFactory
+│   ├── ReviewViewModel.kt     ReviewUiState + ReviewViewModel + ReviewViewModelFactory
+│   └── CartViewModel.kt       CartUiState + CartViewModel
+└── ui
+    ├── GameCoreApp.kt         NavHost: obtém os ViewModels e liga cada tela ao seu estado
+    ├── AuthScreens.kt, StoreScreen.kt, GameScreen.kt, CartScreen.kt,
+    │   CommunityScreens.kt, ReviewScreens.kt
+    ├── GameCoreComponents.kt, GameCoreDesign.kt   componentes visuais reaproveitados
+    └── theme
+```
+
+- **`ui`**: só `@Composable`. Nenhuma tela importa DAO, `AppDatabase`, `CoroutineScope` ou `Dispatchers`.
+- **`data.local`**: exatamente as Entities, DAOs e o `AppDatabase` do Trabalho 3. Tiramos o `ReviewData` do arquivo `GameData.kt` e colocamos junto das outras Entities.
+- **`data.model`**: classes que não são tabelas (`GameData`, `UserData`) e o catálogo fixo. Separamos para não misturar o que é Room com o que é só modelo.
+- **`data.repository`**: um Repository por Entity.
+- **`viewmodel`**: os ViewModels, cada um no mesmo arquivo que o seu `UiState` e a sua Factory, para ficar fácil achar tudo de uma tela.
+
+O nome das tabelas (`avaliacoes`, `lista_desejos`, `usuarios`) e a versão do banco (2) não mudaram. Por isso os dados que já estavam salvos no aparelho continuam lá depois da atualização, sem precisar de migração.
+
+## Por que o Repository existe
+
+Antes, quem queria dados chamava o DAO direto. Agora o caminho é sempre **tela → ViewModel → Repository → DAO**. Os Repositories ([`ReviewRepository`](app/src/main/java/com/example/gamecore/data/repository/ReviewRepository.kt), [`WishlistRepository`](app/src/main/java/com/example/gamecore/data/repository/WishlistRepository.kt), [`UsuarioRepository`](app/src/main/java/com/example/gamecore/data/repository/UsuarioRepository.kt)) recebem o DAO no construtor e repassam `buscarTodos()`, `inserir`, `atualizar` e `deletar`.
+
+Hoje ele só repassa, mas é o único ponto que sabe de onde os dados vêm. Se um dia as avaliações vierem de uma API, só o `ReviewRepository` muda; o `ReviewViewModel` e as telas continuam iguais. Também deixou de ser preciso o ViewModel receber `Context` para abrir o banco: o banco e os Repositories são criados uma vez na [`MainActivity`](app/src/main/java/com/example/gamecore/MainActivity.kt).
+
+## DAO reativo com Flow
+
+Em [`ReviewDao`](app/src/main/java/com/example/gamecore/data/local/ReviewDao.kt), [`WishlistDao`](app/src/main/java/com/example/gamecore/data/local/WishlistDao.kt) e [`UsuarioDAO`](app/src/main/java/com/example/gamecore/data/local/UsuarioDAO.kt), a busca geral ficou assim:
+
+```kotlin
+@Query("SELECT * FROM avaliacoes ORDER BY id DESC")
+fun buscarTodos(): Flow<List<ReviewData>>
+```
+
+Não é mais `suspend`. No `init` de cada ViewModel, coletamos esse `Flow` uma vez e copiamos a lista para o `UiState`. Quando publicamos, editamos ou removemos uma avaliação, o Room emite a lista nova e a tela se redesenha sozinha. As outras consultas (`buscarPorId`, `buscarLogin`...) continuam `suspend`, porque são buscas pontuais.
+
+## ViewModels, UiState e Factory
+
+Todos seguem o mesmo padrão:
+
+```kotlin
+private val _uiState = MutableStateFlow(ReviewUiState())
+val uiState: StateFlow<ReviewUiState> = _uiState.asStateFlow()
+```
+
+A tela só lê `uiState`; quem altera `_uiState` é o próprio ViewModel, dentro dos métodos de ação (`addReview`, `removeReview`, `signIn`, `addToWishlist`...), que chamam o Repository em `viewModelScope.launch { }`. Como as funções `suspend` do Room já rodam fora da thread principal, não precisamos mais de `Dispatchers.IO` nem de `withContext`.
+
+| UiState | Campos | Por que |
 | --- | --- | --- |
-| Avaliações: [`ReviewData`](app/src/main/java/com/example/gamecore/GameData.kt) → `avaliacoes` | `id`, `gameId`, `author`, `rating`, `text`, `helpful` | Usamos `id` para identificar cada avaliação e `gameId` para ligá-la ao jogo. Guardamos também autor, nota, texto e votos úteis. |
-| Lista de desejos: [`WishlistEntry`](app/src/main/java/com/example/gamecore/data/WishlistEntry.kt) → `lista_desejos` | `id`, `gameId`, `adicionadoEm` | Guardamos o jogo e a data de inclusão. Buscamos nome, capa e preço no catálogo para não duplicar esses dados. |
-| Cadastro e login: [`Usuario`](app/src/main/java/com/example/gamecore/data/Usuario.kt) → `usuarios` | `id`, `nome`, `usuario`, `email`, `senha` | Salvamos os dados preenchidos no cadastro. No login, consultamos e-mail e senha para encontrar a conta. |
+| [`AuthUiState`](app/src/main/java/com/example/gamecore/viewmodel/AuthViewModel.kt) | `currentUser`, `loginEmail`, `loginPassword`, `registerName`, `registerUsername`, `registerEmail`, `registerPassword`, `authError`, `isAuthenticating` | Tudo que Login e Cadastro precisam: o texto dos formulários (antes eram `remember` soltos dentro das telas), a mensagem de erro e o "Entrando..."/"Cadastrando...". O usuário logado também fica aqui porque é o resultado do login. |
+| [`WishlistUiState`](app/src/main/java/com/example/gamecore/viewmodel/WishlistViewModel.kt) | `entries`, `games`, `isLoading` | `entries` são as linhas do Room (usadas para remover), `games` é a mesma lista já convertida para `GameData` para a tela desenhar. |
+| [`ReviewUiState`](app/src/main/java/com/example/gamecore/viewmodel/ReviewViewModel.kt) | `reviews`, `reviewForDetail`, `isLoading` | A lista que alimenta a tela de Avaliações e a nota no detalhe do jogo, e a avaliação aberta na tela de detalhe (buscada por `id`). |
+| [`CartUiState`](app/src/main/java/com/example/gamecore/viewmodel/CartViewModel.kt) | `cart`, `library` | Carrinho e Biblioteca. Como no Trabalho 3, eles ficam só em memória. |
 
-Anotamos as três classes com `@Entity` e usamos `id: Int = 0` com `@PrimaryKey(autoGenerate = true)`. Criamos um índice único em `gameId` na Lista de desejos para não salvar o mesmo jogo duas vezes.
+Os três ViewModels que recebem Repository têm uma Factory que implementa `ViewModelProvider.Factory`. Em [`GameCoreApp.kt`](app/src/main/java/com/example/gamecore/ui/GameCoreApp.kt), obtemos cada um assim:
 
-Reunimos as três entidades e os DAOs em [`AppDatabase`](app/src/main/java/com/example/gamecore/data/AppDatabase.kt). Criamos uma única instância com `Room.databaseBuilder`, `companion object`, `@Volatile` e `synchronized`, seguindo o exemplo de aula. Quando acrescentamos os usuários, passamos o banco para a versão 2 e criamos uma migração que preserva avaliações e desejos já salvos.
+```kotlin
+val reviewViewModel: ReviewViewModel = viewModel(factory = ReviewViewModelFactory(reviewRepository))
+val reviewState by reviewViewModel.uiState.collectAsStateWithLifecycle()
+```
 
-Criamos cadastro e login como complemento ao Trabalho 3, embora o enunciado não exigisse autenticação. Fizemos tudo localmente, sem servidor ou sincronização. Nesta versão de estudo, guardamos a senha diretamente no banco; sabemos que isso não seria adequado para um aplicativo publicado.
+O `CartViewModel` não recebe nada no construtor, então usa o `viewModel()` simples visto na Aula 12. Para isso, adicionamos `lifecycle-viewmodel-compose` e `lifecycle-runtime-compose` em [`app/build.gradle.kts`](app/build.gradle.kts).
 
-## Consultas dos DAOs
+Deixamos dentro das telas apenas estado puramente visual, que não é dado do app: mostrar/ocultar senha, texto da busca na Loja, slide atual do carrossel e o rascunho de uma avaliação antes de publicar.
 
-Criamos [`ReviewDao`](app/src/main/java/com/example/gamecore/data/ReviewDao.kt), [`WishlistDao`](app/src/main/java/com/example/gamecore/data/WishlistDao.kt) e [`UsuarioDAO`](app/src/main/java/com/example/gamecore/data/UsuarioDAO.kt), um para cada tabela. Nos três, implementamos métodos `suspend` para inserir (`@Insert`), buscar todos (`@Query`), atualizar (`@Update`) e remover (`@Delete`). Acrescentamos buscas por `id` para localizar registros específicos.
+## Algo quebrou durante a reorganização?
 
-Em `ReviewDao`, usamos `buscarPorJogoId(gameId)` para mostrar só as avaliações do jogo aberto. Em `WishlistDao`, usamos a busca por `gameId` para encontrar o item antes de removê-lo. Em `UsuarioDAO`, consultamos `id`, e-mail e nome de usuário; verificamos se já existe uma conta antes do cadastro e usamos `buscarLogin(email, senha)` para entrar.
+- **Compra e Lista de desejos em ViewModels diferentes.** No Trabalho 3, `checkout()` movia o carrinho para a Biblioteca e apagava os jogos comprados da Lista de desejos no mesmo método. Ao separar, o `CartViewModel` não tem acesso ao `WishlistRepository`. Resolvemos fazendo `checkout()` devolver os jogos comprados, e a tela repassa essa lista para `wishlistViewModel.removeGames(...)`.
+- **Ordem das avaliações.** Antes, uma avaliação recém-publicada era colocada no fim da lista em memória, mas ao reabrir a tela ela aparecia no topo (o banco ordena por `id DESC`). Com `Flow`, a lista sempre vem do banco, então a nova avaliação já aparece no topo. Ficou consistente.
+- **Imports depois de mover os arquivos.** Ao trocar o pacote das telas e tirar `ReviewData` de `GameData.kt`, os arquivos passaram a precisar de imports que antes não existiam (`R`, `GameData`, `toBrazilianPrice`...), porque estavam todos no mesmo pacote. Ajustamos os imports e conferimos com o build.
+- **Sair da conta.** O `signOut()` antigo limpava tudo num lugar só. Agora o botão **Sair** chama `authViewModel.signOut()` e `cartViewModel.clear()`. A Lista de desejos e as Avaliações não precisam ser limpas, porque vêm do `Flow` do banco.
 
-Executamos as operações no [`GameCoreViewModel`](app/src/main/java/com/example/gamecore/GameCoreViewModel.kt) com `viewModelScope.launch(Dispatchers.IO)`, sem acessar o SQLite na thread da interface. Depois da resposta do banco, atualizamos o estado observado pelo Compose. Tratamos erros com `try/catch` e `Log.e`.
+<!-- TODO (equipe): completar com o que aconteceu ao testar no aparelho, se algo diferente aparecer. -->
 
-## CRUD nas telas
+## Dificuldades da equipe
 
-Na Lista de desejos, salvamos um jogo pelo botão do detalhe. Ao abrir a tela, carregamos os itens com `LaunchedEffect(Unit)`; pelo botão **Remover**, apagamos o registro no DAO. Não fizemos edição de desejos na interface: o DAO tem `atualizar`, mas a tabela guarda somente o jogo e a data.
+<!-- TODO (equipe): contar com as nossas palavras quem teve dificuldade em qual ponto (por exemplo, entender a diferença entre _uiState e uiState, ou por que a Factory é necessária) e como resolvemos. -->
 
-Em Avaliações, publicamos pelo formulário com `inserir`. Ao abrir a tela, carregamos somente os registros do jogo escolhido. Podemos alterar nota e texto com `atualizar` e apagar o registro com **Remover** e `deletar`. Esse é o fluxo de inserir, buscar, atualizar e remover que apresentamos.
+## Evidências da etapa 4
 
-No detalhe da avaliação, enviamos somente `reviewId` pela rota. Em [`MainActivity`](app/src/main/java/com/example/gamecore/MainActivity.kt), chamamos `loadReviewForDetail(id)` e buscamos a avaliação com `ReviewDao.buscarPorId(id)`, sem passar o objeto inteiro entre telas.
+<!-- TODO (equipe): adicionar prints e o link do vídeo mostrando: cadastro/login, adicionar e remover da Lista de desejos, publicar/editar/remover avaliação, e fechar e reabrir o app com os dados mantidos. -->
 
-No Cadastro, verificamos se e-mail e nome de usuário já existem antes de salvar a conta. No Login, consultamos e-mail e senha no `UsuarioDAO` antes de abrir a Loja. Conseguimos entrar novamente após fechar o app porque mantemos a conta no banco. Criamos `atualizar` e `deletar` no DAO, mas não colocamos essas ações na tela de usuários.
-
-## Dificuldades e soluções
-
-Nós tivemos dificuldade para fazer a interface depender do resultado do banco, em vez de mudar a lista em memória imediatamente. Vimos um jogo aparecer na Lista de desejos antes de o Room confirmar a gravação. Corrigimos o fluxo para atualizar a tela depois de `inserir` e `buscarTodos`. Também passamos a controlar inclusões pendentes para evitar toques repetidos e a reler a lista depois de `deletar`.
-
-Também enfrentamos um erro na compilação do Room com a versão de Kotlin e KSP usada pelo projeto. Atualizamos a dependência para 2.8.5 e conseguimos compilar novamente. Mantivemos as chamadas aos DAOs em `Dispatchers.IO` para não executar acesso ao SQLite na thread da interface.
-
-Nós, Gabriel Henrique Alves Raatz e Matheus Pupia, tivemos dificuldade para decidir como organizar as tabelas do banco. Escolhemos separar avaliações, Lista de desejos e usuários em três tabelas. Mantivemos o catálogo no código e usamos `gameId` para localizar os dados dos jogos. Quando acrescentamos cadastro e login, criamos a migração para incluir `usuarios` sem apagar os registros anteriores.
-
-## Evidências da etapa 3
-
-No [nosso vídeo](https://www.youtube.com/shorts/yGpeYdXlEx0), mostramos cadastro, navegação, Lista de desejos e uma avaliação salva. No trecho final, mostramos a avaliação por volta de 1:39, saímos para a tela inicial do celular e abrimos o GameCore novamente. Por volta de 1:59, mostramos a mesma avaliação após a reabertura. Retiramos as imagens e o vídeo antigos do Trabalho 2 porque não mostravam esta etapa.
-
-Reunimos nosso processo e nossas decisões na [documentação em PDF](documentacao/GameCore_Trabalho_3_Documentacao.pdf). Usamos o [roteiro de apresentação](documentacao/roteiro-persistencia-room.md) para repetir ao vivo as ações de inserir, editar, remover e reabrir o aplicativo. Não usamos **Limpar dados** nem desinstalamos o app durante o teste, pois isso apagaria o banco local.
+Usamos o [roteiro de apresentação](documentacao/roteiro-persistencia-room.md) para repetir ao vivo os mesmos fluxos do Trabalho 3 e mostrar que nada mudou para quem usa o app.

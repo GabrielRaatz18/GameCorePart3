@@ -1,4 +1,4 @@
-package com.example.gamecore.data
+package com.example.gamecore.data.local
 
 import androidx.room.Entity
 import androidx.room.Index

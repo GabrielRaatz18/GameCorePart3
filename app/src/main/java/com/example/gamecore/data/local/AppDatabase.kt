@@ -1,4 +1,4 @@
-package com.example.gamecore.data
+package com.example.gamecore.data.local
 
 import android.content.Context
 import androidx.room.Database
@@ -6,7 +6,6 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
-import com.example.gamecore.ReviewData
 
 @Database(
     entities = [ReviewData::class, WishlistEntry::class, Usuario::class],

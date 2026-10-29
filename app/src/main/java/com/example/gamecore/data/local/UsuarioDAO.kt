@@ -1,10 +1,11 @@
-package com.example.gamecore.data
+package com.example.gamecore.data.local
 
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Update
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface UsuarioDAO {
@@ -12,7 +13,7 @@ interface UsuarioDAO {
     suspend fun inserir(usuario: Usuario): Long
 
     @Query("SELECT * FROM usuarios")
-    suspend fun buscarUsuarios(): List<Usuario>
+    fun buscarTodos(): Flow<List<Usuario>>
 
     @Query("SELECT * FROM usuarios WHERE id = :id LIMIT 1")
     suspend fun buscarPorId(id: Int): Usuario?

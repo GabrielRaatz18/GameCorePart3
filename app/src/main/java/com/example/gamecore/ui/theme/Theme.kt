@@ -4,7 +4,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
-import com.example.gamecore.GameCoreColors
+import com.example.gamecore.ui.GameCoreColors
 
 private val DarkColorScheme = darkColorScheme(
     primary = GameCoreColors.Orange,

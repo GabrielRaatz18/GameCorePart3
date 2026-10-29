@@ -1,6 +1,6 @@
 # Documentação e evidências do Trabalho 3
 
-No [PDF da documentação](GameCore_Trabalho_3_Documentacao.pdf), contamos como evoluímos o Trabalho 2, organizamos as três tabelas do Room e fizemos avaliações, Lista de desejos, cadastro e login. Também relatamos as dificuldades que tivemos. No [README principal](../README.md), explicamos como executamos o projeto.
+No [PDF da documentação](GameCore_Trabalho_3_Documentacao.pdf), contamos como evoluímos o Trabalho 2, organizamos as três tabelas do Room e fizemos avaliações, Lista de desejos, cadastro e login. Também relatamos as dificuldades que tivemos. No [README principal](../README.md), explicamos como executamos o projeto e a reorganização em MVVM do Trabalho 4. O texto antigo do Trabalho 3 ficou em [trabalho-3.md](trabalho-3.md).
 
 ## Vídeo da equipe
 

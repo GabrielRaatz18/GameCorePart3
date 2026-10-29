@@ -1,4 +1,4 @@
-package com.example.gamecore
+package com.example.gamecore.ui
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
@@ -48,6 +48,10 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.gamecore.R
+import com.example.gamecore.data.model.GameData
+import com.example.gamecore.data.model.toBrazilianPrice
+import com.example.gamecore.data.model.storeGames
 import com.example.gamecore.ui.theme.GameCoreTheme
 import kotlinx.coroutines.delay
 

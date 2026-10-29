@@ -1,4 +1,4 @@
-package com.example.gamecore
+package com.example.gamecore.ui
 
 import android.widget.Toast
 import androidx.compose.foundation.Canvas
@@ -40,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import com.example.gamecore.R
 
 @Composable
 fun GameCoreLogo(modifier: Modifier = Modifier) {
@@ -76,6 +77,10 @@ fun GameCoreLogo(modifier: Modifier = Modifier) {
 
 @Composable
 fun LoginScreen(
+    email: String,
+    password: String,
+    onEmailChange: (String) -> Unit,
+    onPasswordChange: (String) -> Unit,
     onLogin: (email: String, password: String) -> Unit,
     onOpenRegister: () -> Unit,
     authError: String? = null,
@@ -83,8 +88,6 @@ fun LoginScreen(
 ) {
     val context = LocalContext.current
 
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
     var isPasswordVisible by remember { mutableStateOf(false) }
 
     Surface(
@@ -125,7 +128,7 @@ fun LoginScreen(
 
                 OutlinedTextField(
                     value = email,
-                    onValueChange = { email = it },
+                    onValueChange = onEmailChange,
                     placeholder = {
                         Text(
                             text = "Digite seu e-mail",
@@ -166,7 +169,7 @@ fun LoginScreen(
 
                 OutlinedTextField(
                     value = password,
-                    onValueChange = { password = it },
+                    onValueChange = onPasswordChange,
                     placeholder = {
                         Text(
                             text = "Sua senha secreta",
@@ -272,6 +275,14 @@ fun LoginScreen(
 
 @Composable
 fun RegisterScreen(
+    name: String,
+    username: String,
+    email: String,
+    password: String,
+    onNameChange: (String) -> Unit,
+    onUsernameChange: (String) -> Unit,
+    onEmailChange: (String) -> Unit,
+    onPasswordChange: (String) -> Unit,
     onRegister: (name: String, username: String, email: String, password: String) -> Unit,
     onOpenLogin: () -> Unit,
     authError: String? = null,
@@ -279,10 +290,6 @@ fun RegisterScreen(
 ) {
     val context = LocalContext.current
 
-    var name by remember { mutableStateOf("") }
-    var username by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
     var isPasswordVisible by remember { mutableStateOf(false) }
 
     Surface(
@@ -335,7 +342,7 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(6.dp))
             OutlinedTextField(
                 value = name,
-                onValueChange = { name = it },
+                onValueChange = onNameChange,
                 placeholder = {
                     Text(
                         text = "Seu nome completo",
@@ -374,7 +381,7 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(6.dp))
             OutlinedTextField(
                 value = username,
-                onValueChange = { username = it },
+                onValueChange = onUsernameChange,
                 placeholder = {
                     Text(
                         text = "@username",
@@ -413,7 +420,7 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(6.dp))
             OutlinedTextField(
                 value = email,
-                onValueChange = { email = it },
+                onValueChange = onEmailChange,
                 placeholder = {
                     Text(
                         text = "seuemail@exemplo.com",
@@ -452,7 +459,7 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(6.dp))
             OutlinedTextField(
                 value = password,
-                onValueChange = { password = it },
+                onValueChange = onPasswordChange,
                 placeholder = {
                     Text(
                         text = "Crie uma senha forte",

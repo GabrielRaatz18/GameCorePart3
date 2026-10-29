@@ -1,4 +1,4 @@
-package com.example.gamecore.data
+package com.example.gamecore.data.local
 
 import androidx.room.Dao
 import androidx.room.Delete
@@ -6,6 +6,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface WishlistDao {
@@ -13,7 +14,7 @@ interface WishlistDao {
     suspend fun inserir(item: WishlistEntry): Long
 
     @Query("SELECT * FROM lista_desejos ORDER BY adicionadoEm DESC")
-    suspend fun buscarTodos(): List<WishlistEntry>
+    fun buscarTodos(): Flow<List<WishlistEntry>>
 
     @Query("SELECT * FROM lista_desejos WHERE id = :id LIMIT 1")
     suspend fun buscarPorId(id: Int): WishlistEntry?

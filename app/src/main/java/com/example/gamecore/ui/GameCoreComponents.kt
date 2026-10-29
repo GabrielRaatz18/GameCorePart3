@@ -1,4 +1,4 @@
-package com.example.gamecore
+package com.example.gamecore.ui
 
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
@@ -49,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.gamecore.R
 
 enum class GameCoreDestination(
     val label: String,

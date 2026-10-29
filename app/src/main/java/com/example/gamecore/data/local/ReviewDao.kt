@@ -1,11 +1,11 @@
-package com.example.gamecore.data
+package com.example.gamecore.data.local
 
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Update
-import com.example.gamecore.ReviewData
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ReviewDao {
@@ -13,7 +13,7 @@ interface ReviewDao {
     suspend fun inserir(avaliacao: ReviewData): Long
 
     @Query("SELECT * FROM avaliacoes ORDER BY id DESC")
-    suspend fun buscarTodos(): List<ReviewData>
+    fun buscarTodos(): Flow<List<ReviewData>>
 
     @Query("SELECT * FROM avaliacoes WHERE id = :id LIMIT 1")
     suspend fun buscarPorId(id: Int): ReviewData?

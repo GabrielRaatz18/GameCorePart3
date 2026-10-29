@@ -1,5 +1,8 @@
 package com.example.gamecore
 
+import com.example.gamecore.data.model.storeGames
+import com.example.gamecore.ui.couponDiscountRate
+import com.example.gamecore.viewmodel.CartViewModel
 import org.junit.Test
 
 import org.junit.Assert.assertEquals
@@ -14,7 +17,7 @@ import org.junit.Assert.assertTrue
 class ExampleUnitTest {
     @Test
     fun `cart prevents duplicate games and checkout moves game to library`() {
-        val viewModel = GameCoreViewModel()
+        val viewModel = CartViewModel()
         val game = storeGames.first()
 
         assertTrue(viewModel.addToCart(game))
@@ -22,21 +25,19 @@ class ExampleUnitTest {
 
         viewModel.checkout()
 
-        assertTrue(viewModel.cart.isEmpty())
-        assertEquals(listOf(game), viewModel.library)
+        assertTrue(viewModel.uiState.value.cart.isEmpty())
+        assertEquals(listOf(game), viewModel.uiState.value.library)
     }
 
     @Test
-    fun `wishlist prevents games already owned`() {
-        val viewModel = GameCoreViewModel()
+    fun `checkout returns purchased games so they leave the wishlist`() {
+        val viewModel = CartViewModel()
         val game = storeGames.first()
 
         assertTrue(viewModel.addToCart(game))
-        viewModel.checkout()
 
-        var added: Boolean? = null
-        viewModel.addToWishlist(game) { added = it }
-        assertFalse(added!!)
+        assertEquals(listOf(game), viewModel.checkout())
+        assertTrue(viewModel.checkout().isEmpty())
     }
 
     @Test

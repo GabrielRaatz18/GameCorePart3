@@ -1,4 +1,4 @@
-package com.example.gamecore
+package com.example.gamecore.ui
 
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
@@ -36,6 +36,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.gamecore.R
+import com.example.gamecore.data.local.ReviewData
+import com.example.gamecore.data.model.GameData
+import com.example.gamecore.data.model.toBrazilianPrice
+import com.example.gamecore.data.model.storeGames
 import com.example.gamecore.ui.theme.GameCoreTheme
 import java.util.Locale
 

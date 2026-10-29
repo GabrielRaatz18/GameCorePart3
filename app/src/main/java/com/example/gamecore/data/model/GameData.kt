@@ -1,8 +1,7 @@
-package com.example.gamecore
+package com.example.gamecore.data.model
 
 import androidx.annotation.DrawableRes
-import androidx.room.Entity
-import androidx.room.PrimaryKey
+import com.example.gamecore.R
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -20,17 +19,6 @@ data class GameData(
     val platforms: String,
     val screenshots: List<Int> = emptyList(),
     val id: String = name.lowercase().replace(" ", "-")
-)
-
-@Entity(tableName = "avaliacoes")
-data class ReviewData(
-    @PrimaryKey(autoGenerate = true)
-    val id: Int = 0,
-    val gameId: String,
-    val author: String,
-    val rating: Int,
-    val text: String,
-    val helpful: Int = 0
 )
 
 data class UserData(
