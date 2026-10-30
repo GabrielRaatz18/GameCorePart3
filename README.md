@@ -97,8 +97,8 @@ A tela só lê `uiState`; quem altera `_uiState` é o próprio ViewModel, dentro
 | --- | --- | --- |
 | [`AuthUiState`](app/src/main/java/com/example/gamecore/viewmodel/AuthViewModel.kt) | `currentUser`, `loginEmail`, `loginPassword`, `registerName`, `registerUsername`, `registerEmail`, `registerPassword`, `authError`, `isAuthenticating` | Tudo que Login e Cadastro precisam: o texto dos formulários (antes eram `remember` soltos dentro das telas), a mensagem de erro e o "Entrando..."/"Cadastrando...". O usuário logado também fica aqui porque é o resultado do login. |
 | [`WishlistUiState`](app/src/main/java/com/example/gamecore/viewmodel/WishlistViewModel.kt) | `entries`, `games`, `isLoading` | `entries` são as linhas do Room (usadas para remover), `games` é a mesma lista já convertida para `GameData` para a tela desenhar. |
-| [`ReviewUiState`](app/src/main/java/com/example/gamecore/viewmodel/ReviewViewModel.kt) | `reviews`, `reviewForDetail`, `isLoading` | A lista que alimenta a tela de Avaliações e a nota no detalhe do jogo, e a avaliação aberta na tela de detalhe (buscada por `id`). |
-| [`CartUiState`](app/src/main/java/com/example/gamecore/viewmodel/CartViewModel.kt) | `cart`, `library` | Carrinho e Biblioteca. Como no Trabalho 3, eles ficam só em memória. |
+| [`ReviewUiState`](app/src/main/java/com/example/gamecore/viewmodel/ReviewViewModel.kt) | `reviews`, `reviewForDetail`, `isLoading`, `newReviewText`, `newReviewRating`, `editText`, `editRating` | A lista que alimenta a tela de Avaliações e a nota no detalhe do jogo, a avaliação aberta na tela de detalhe (buscada por `id`) e o texto e a nota dos formulários de publicar e de editar. |
+| [`CartUiState`](app/src/main/java/com/example/gamecore/viewmodel/CartViewModel.kt) | `cart`, `library`, `couponCode`, `paymentMethodIndex` | Carrinho e Biblioteca, que como no Trabalho 3 ficam só em memória, além do cupom e da forma de pagamento escolhidos. O desconto (`discountRate`) e o nome do pagamento (`paymentMethod`) são calculados a partir desses campos. |
 
 Os três ViewModels que recebem Repository têm uma Factory que implementa `ViewModelProvider.Factory`. Em [`GameCoreApp.kt`](app/src/main/java/com/example/gamecore/ui/GameCoreApp.kt), obtemos cada um assim:
 
@@ -109,13 +109,14 @@ val reviewState by reviewViewModel.uiState.collectAsStateWithLifecycle()
 
 O `CartViewModel` não recebe nada no construtor, então usa o `viewModel()` simples visto na Aula 12. Para isso, adicionamos `lifecycle-viewmodel-compose` e `lifecycle-runtime-compose` em [`app/build.gradle.kts`](app/build.gradle.kts).
 
-Deixamos dentro das telas apenas estado puramente visual, que não é dado do app: mostrar/ocultar senha, texto da busca na Loja, slide atual do carrossel e o rascunho de uma avaliação antes de publicar.
+Todos os formulários que salvam ou usam dados (login, cadastro, avaliação e carrinho) ficam no `UiState`. Deixamos em `remember` dentro das telas apenas o que controla a exibição: mostrar/ocultar senha, busca e categoria selecionada na Loja, slide atual do carrossel e o aviso de "adicionando" no botão da Lista de desejos.
 
 ## Algo quebrou durante a reorganização?
 
 - **Compra e Lista de desejos em ViewModels diferentes.** No Trabalho 3, `checkout()` movia o carrinho para a Biblioteca e apagava os jogos comprados da Lista de desejos no mesmo método. Ao separar, o `CartViewModel` não tem acesso ao `WishlistRepository`. Resolvemos fazendo `checkout()` devolver os jogos comprados, e a tela repassa essa lista para `wishlistViewModel.removeGames(...)`.
 - **Ordem das avaliações.** Antes, uma avaliação recém-publicada era colocada no fim da lista em memória, mas ao reabrir a tela ela aparecia no topo (o banco ordena por `id DESC`). Com `Flow`, a lista sempre vem do banco, então a nova avaliação já aparece no topo. Ficou consistente.
 - **Imports depois de mover os arquivos.** Ao trocar o pacote das telas e tirar `ReviewData` de `GameData.kt`, os arquivos passaram a precisar de imports que antes não existiam (`R`, `GameData`, `toBrazilianPrice`...), porque estavam todos no mesmo pacote. Ajustamos os imports e conferimos com o build.
+- **Campos que não eram limpos.** Com `remember`, o texto de um formulário sumia ao sair da tela. O ViewModel continua vivo durante a navegação, então, ao mover os campos para o `UiState`, o texto passaria a continuar lá ao voltar. Para manter o comportamento do Trabalho 3, usamos `DisposableEffect` em cada rota para limpar o formulário ao sair da tela.
 - **Sair da conta.** O `signOut()` antigo limpava tudo num lugar só. Agora o botão **Sair** chama `authViewModel.signOut()` e `cartViewModel.clear()`. A Lista de desejos e as Avaliações não precisam ser limpas, porque vêm do `Flow` do banco.
 
 <!-- TODO (equipe): completar com o que aconteceu ao testar no aparelho, se algo diferente aparecer. -->

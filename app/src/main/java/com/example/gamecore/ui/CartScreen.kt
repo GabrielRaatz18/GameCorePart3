@@ -25,10 +25,6 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -47,6 +43,11 @@ import com.example.gamecore.ui.theme.GameCoreTheme
 @Composable
 fun CartScreen(
     cart: List<GameData> = emptyList(),
+    couponCode: String = "",
+    paymentMethod: String = "Cartão de crédito",
+    discountRate: Double = 0.0,
+    onCouponCodeChange: (String) -> Unit = {},
+    onNextPaymentMethod: () -> Unit = {},
     onRemoveItem: (GameData) -> Unit = {},
     onContinueShopping: () -> Unit = {},
     onCheckout: () -> Unit = {},
@@ -54,13 +55,6 @@ fun CartScreen(
     onOpenProfile: () -> Unit = {}
 ) {
     val context = LocalContext.current
-
-    var couponCode by remember {
-        mutableStateOf("")
-    }
-    var paymentMethodIndex by remember { mutableStateOf(0) }
-    val paymentMethods = listOf("Cartão de crédito", "PIX", "Boleto")
-    val discountRate = couponDiscountRate(couponCode)
 
     GameCorePage(
         selectedDestination = GameCoreDestination.CART,
@@ -144,9 +138,7 @@ fun CartScreen(
 
                 OutlinedTextField(
                     value = couponCode,
-                    onValueChange = {
-                        couponCode = it
-                    },
+                    onValueChange = onCouponCodeChange,
                     label = {
                         Text(text = "Código do cupom")
                     },
@@ -178,8 +170,8 @@ fun CartScreen(
                 Spacer(modifier = Modifier.height(10.dp))
 
                 CartPaymentMethod(
-                    paymentMethod = paymentMethods[paymentMethodIndex],
-                    onClick = { paymentMethodIndex = (paymentMethodIndex + 1) % paymentMethods.size }
+                    paymentMethod = paymentMethod,
+                    onClick = onNextPaymentMethod
                 )
 
                 Spacer(modifier = Modifier.height(GameCoreDimens.SectionSpacing))
@@ -441,9 +433,4 @@ private fun CartPreview() {
             )
         )
     }
-}
-
-internal fun couponDiscountRate(code: String): Double = when (code.trim().uppercase()) {
-    "GAME10" -> 0.10
-    else -> 0.0
 }

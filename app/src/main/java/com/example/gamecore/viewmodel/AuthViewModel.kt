@@ -42,6 +42,16 @@ class AuthViewModel(private val repository: UsuarioRepository) : ViewModel() {
 
     fun onRegisterPasswordChange(value: String) = _uiState.update { it.copy(registerPassword = value) }
 
+    fun resetLoginForm() {
+        _uiState.update { it.copy(loginEmail = "", loginPassword = "") }
+    }
+
+    fun resetRegisterForm() {
+        _uiState.update {
+            it.copy(registerName = "", registerUsername = "", registerEmail = "", registerPassword = "")
+        }
+    }
+
     fun signIn(email: String, password: String, onSuccess: () -> Unit) {
         _uiState.update { it.copy(authError = null, isAuthenticating = true) }
         val normalizedEmail = normalizeEmail(email)

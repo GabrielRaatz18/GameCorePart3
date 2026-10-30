@@ -16,7 +16,11 @@ import kotlinx.coroutines.launch
 data class ReviewUiState(
     val reviews: List<ReviewData> = emptyList(),
     val reviewForDetail: ReviewData? = null,
-    val isLoading: Boolean = true
+    val isLoading: Boolean = true,
+    val newReviewText: String = "",
+    val newReviewRating: Int = 5,
+    val editText: String = "",
+    val editRating: String = ""
 )
 
 class ReviewViewModel(private val repository: ReviewRepository) : ViewModel() {
@@ -37,13 +41,31 @@ class ReviewViewModel(private val repository: ReviewRepository) : ViewModel() {
         }
     }
 
-    fun addReview(gameId: String, author: String, rating: Int, text: String) {
+    fun onNewReviewTextChange(value: String) = _uiState.update { it.copy(newReviewText = value) }
+
+    fun onNewReviewRatingChange(value: Int) = _uiState.update { it.copy(newReviewRating = value) }
+
+    fun onEditTextChange(value: String) = _uiState.update { it.copy(editText = value) }
+
+    fun onEditRatingChange(value: String) = _uiState.update {
+        it.copy(editRating = value.filter(Char::isDigit).take(1))
+    }
+
+    fun resetNewReviewForm() {
+        _uiState.update { it.copy(newReviewText = "", newReviewRating = 5) }
+    }
+
+    fun publishReview(gameId: String, author: String) {
+        val state = _uiState.value
+        if (state.newReviewText.isBlank()) return
+
         val newReview = ReviewData(
             gameId = gameId,
             author = author,
-            rating = rating.coerceIn(1, 5),
-            text = text.trim()
+            rating = state.newReviewRating.coerceIn(1, 5),
+            text = state.newReviewText.trim()
         )
+        _uiState.update { it.copy(newReviewText = "") }
 
         viewModelScope.launch {
             try {
@@ -54,10 +76,14 @@ class ReviewViewModel(private val repository: ReviewRepository) : ViewModel() {
         }
     }
 
-    fun updateReview(updated: ReviewData) {
-        if (_uiState.value.reviewForDetail?.id == updated.id) {
-            _uiState.update { it.copy(reviewForDetail = updated) }
-        }
+    fun saveEditedReview() {
+        val state = _uiState.value
+        val review = state.reviewForDetail ?: return
+        val updated = review.copy(
+            text = state.editText,
+            rating = state.editRating.toIntOrNull()?.coerceIn(1, 5) ?: review.rating
+        )
+        _uiState.update { it.copy(reviewForDetail = updated) }
 
         viewModelScope.launch {
             try {
@@ -88,7 +114,13 @@ class ReviewViewModel(private val repository: ReviewRepository) : ViewModel() {
         viewModelScope.launch {
             try {
                 val savedReview = repository.buscarPorId(id)
-                _uiState.update { it.copy(reviewForDetail = savedReview) }
+                _uiState.update {
+                    it.copy(
+                        reviewForDetail = savedReview,
+                        editText = savedReview?.text.orEmpty(),
+                        editRating = savedReview?.rating?.toString().orEmpty()
+                    )
+                }
             } catch (error: Exception) {
                 Log.e(TAG, "Não foi possível carregar o detalhe da avaliação.", error)
             }

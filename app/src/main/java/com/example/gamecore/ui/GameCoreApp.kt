@@ -5,6 +5,7 @@ import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -83,6 +84,9 @@ fun MainApp(
             popExitTransition = { ExitTransition.None }
         ) {
             composable(Routes.Login) {
+                DisposableEffect(Unit) {
+                    onDispose { authViewModel.resetLoginForm() }
+                }
                 LoginScreen(
                     email = authState.loginEmail,
                     password = authState.loginPassword,
@@ -104,6 +108,9 @@ fun MainApp(
                 )
             }
             composable(Routes.Register) {
+                DisposableEffect(Unit) {
+                    onDispose { authViewModel.resetRegisterForm() }
+                }
                 RegisterScreen(
                     name = authState.registerName,
                     username = authState.registerUsername,
@@ -138,8 +145,16 @@ fun MainApp(
                 )
             }
             composable(Routes.Cart) {
+                DisposableEffect(Unit) {
+                    onDispose { cartViewModel.resetCheckoutForm() }
+                }
                 CartScreen(
                     cart = cart,
+                    couponCode = cartState.couponCode,
+                    paymentMethod = cartState.paymentMethod,
+                    discountRate = cartState.discountRate,
+                    onCouponCodeChange = cartViewModel::onCouponCodeChange,
+                    onNextPaymentMethod = cartViewModel::nextPaymentMethod,
                     onRemoveItem = cartViewModel::removeFromCart,
                     onContinueShopping = { destinations(GameCoreDestination.STORE) },
                     onCheckout = {
@@ -201,6 +216,9 @@ fun MainApp(
             }
             composable(Routes.Reviews) { entry ->
                 val gameId = entry.arguments?.getString("gameId") ?: storeGames.first().id
+                DisposableEffect(gameId) {
+                    onDispose { reviewViewModel.resetNewReviewForm() }
+                }
                 val game = allGames().firstOrNull { it.id == gameId } ?: storeGames.first()
                 val gameReviews = reviews.filter { it.gameId == game.id }
                 ReviewsScreen(
@@ -210,9 +228,11 @@ fun MainApp(
                     isOwned = library.any { it.id == game.id },
                     onOpen = { navController.navigate(Routes.review(it.id)) },
                     onRemove = reviewViewModel::removeReview,
-                    onAdd = { rating, text ->
-                        reviewViewModel.addReview(game.id, authState.currentUser.name, rating, text)
-                    },
+                    newReviewText = reviewState.newReviewText,
+                    newReviewRating = reviewState.newReviewRating,
+                    onNewReviewTextChange = reviewViewModel::onNewReviewTextChange,
+                    onNewReviewRatingChange = reviewViewModel::onNewReviewRatingChange,
+                    onPublish = { reviewViewModel.publishReview(game.id, authState.currentUser.name) },
                     currentUser = authState.currentUser,
                     onBack = { navController.popBackStack() },
                     onDestinationClick = destinations
@@ -244,8 +264,12 @@ fun MainApp(
                 if (review != null && review.id == reviewId) {
                     ReviewDetailScreen(
                         review = review,
+                        editText = reviewState.editText,
+                        editRating = reviewState.editRating,
+                        onEditTextChange = reviewViewModel::onEditTextChange,
+                        onEditRatingChange = reviewViewModel::onEditRatingChange,
                         cartCount = cart.size,
-                        onSave = reviewViewModel::updateReview,
+                        onSave = reviewViewModel::saveEditedReview,
                         onBack = { navController.popBackStack() },
                         onDestinationClick = destinations
                     )

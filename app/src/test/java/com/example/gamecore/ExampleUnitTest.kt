@@ -1,8 +1,8 @@
 package com.example.gamecore
 
 import com.example.gamecore.data.model.storeGames
-import com.example.gamecore.ui.couponDiscountRate
 import com.example.gamecore.viewmodel.CartViewModel
+import com.example.gamecore.viewmodel.couponDiscountRate
 import org.junit.Test
 
 import org.junit.Assert.assertEquals
@@ -38,6 +38,23 @@ class ExampleUnitTest {
 
         assertEquals(listOf(game), viewModel.checkout())
         assertTrue(viewModel.checkout().isEmpty())
+    }
+
+    @Test
+    fun `checkout form lives in the ui state and resets after purchase`() {
+        val viewModel = CartViewModel()
+
+        viewModel.addToCart(storeGames.first())
+        viewModel.onCouponCodeChange("game10")
+        viewModel.nextPaymentMethod()
+
+        assertEquals(0.10, viewModel.uiState.value.discountRate, 0.0)
+        assertEquals("PIX", viewModel.uiState.value.paymentMethod)
+
+        viewModel.checkout()
+
+        assertEquals("", viewModel.uiState.value.couponCode)
+        assertEquals("Cartão de crédito", viewModel.uiState.value.paymentMethod)
     }
 
     @Test

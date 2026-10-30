@@ -18,10 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -40,14 +37,15 @@ fun ReviewsScreen(
     isOwned: Boolean = false,
     onOpen: (ReviewData) -> Unit,
     onRemove: (ReviewData) -> Unit,
-    onAdd: (Int, String) -> Unit,
+    newReviewText: String,
+    newReviewRating: Int,
+    onNewReviewTextChange: (String) -> Unit,
+    onNewReviewRatingChange: (Int) -> Unit,
+    onPublish: () -> Unit,
     currentUser: UserData,
     onBack: () -> Unit,
     onDestinationClick: (GameCoreDestination) -> Unit
 ) {
-    var text by remember(game.id) { mutableStateOf("") }
-    var selectedRating by remember(game.id) { mutableStateOf(5) }
-
     val myReview = remember(reviews, game.id) {
         reviews.firstOrNull {
             it.gameId == game.id && it.author.equals(currentUser.name, ignoreCase = true)
@@ -134,18 +132,18 @@ fun ReviewsScreen(
                             (1..5).forEach { star ->
                                 Text(
                                     text = "★",
-                                    color = if (star <= selectedRating) GameCoreColors.Orange else GameCoreColors.TextDisabled,
+                                    color = if (star <= newReviewRating) GameCoreColors.Orange else GameCoreColors.TextDisabled,
                                     style = MaterialTheme.typography.titleLarge,
                                     modifier = Modifier
-                                        .clickable { selectedRating = star }
+                                        .clickable { onNewReviewRatingChange(star) }
                                         .padding(horizontal = 4.dp, vertical = 2.dp)
                                 )
                             }
                         }
                         Spacer(modifier = Modifier.height(10.dp))
                         OutlinedTextField(
-                            value = text,
-                            onValueChange = { text = it },
+                            value = newReviewText,
+                            onValueChange = onNewReviewTextChange,
                             label = { Text("O que achou do jogo?") },
                             minLines = 3,
                             modifier = Modifier.fillMaxWidth()
@@ -154,12 +152,7 @@ fun ReviewsScreen(
                         GameCorePrimaryButton(
                             text = "Publicar avaliação",
                             modifier = Modifier.fillMaxWidth(),
-                            onClick = {
-                                if (text.isNotBlank()) {
-                                    onAdd(selectedRating, text)
-                                    text = ""
-                                }
-                            }
+                            onClick = onPublish
                         )
                     }
                 } else {
@@ -290,14 +283,15 @@ private fun ReviewCard(
 @Composable
 fun ReviewDetailScreen(
     review: ReviewData,
+    editText: String,
+    editRating: String,
+    onEditTextChange: (String) -> Unit,
+    onEditRatingChange: (String) -> Unit,
     cartCount: Int,
-    onSave: (ReviewData) -> Unit,
+    onSave: () -> Unit,
     onBack: () -> Unit,
     onDestinationClick: (GameCoreDestination) -> Unit
 ) {
-    var text by remember(review.id) { mutableStateOf(review.text) }
-    var rating by remember(review.id) { mutableStateOf(review.rating.toString()) }
-
     GameCorePage(
         selectedDestination = null,
         cartCount = cartCount,
@@ -329,22 +323,22 @@ fun ReviewDetailScreen(
             )
             Spacer(modifier = Modifier.height(20.dp))
             OutlinedTextField(
-                value = rating,
-                onValueChange = { rating = it.filter(Char::isDigit).take(1) },
+                value = editRating,
+                onValueChange = onEditRatingChange,
                 label = { Text("Nota (1 a 5)") },
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
+                value = editText,
+                onValueChange = onEditTextChange,
                 label = { Text("Avaliação") },
                 minLines = 5,
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Caracteres: ${text.length} • Útil para ${review.helpful} pessoas",
+                text = "Caracteres: ${editText.length} • Útil para ${review.helpful} pessoas",
                 color = GameCoreColors.TextSecondary,
                 style = MaterialTheme.typography.bodySmall
             )
@@ -353,12 +347,7 @@ fun ReviewDetailScreen(
                 text = "Salvar alterações",
                 modifier = Modifier.fillMaxWidth(),
                 onClick = {
-                    onSave(
-                        review.copy(
-                            text = text,
-                            rating = rating.toIntOrNull()?.coerceIn(1, 5) ?: review.rating
-                        )
-                    )
+                    onSave()
                     onBack()
                 }
             )
